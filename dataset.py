@@ -1,3 +1,5 @@
+# NUSCENES
+
 from tensorflow.keras.utils import Sequence
 import math
 import numpy as np
@@ -6,8 +8,10 @@ import config_model as cfg
 from utils3 import iou3d, iou2d
 import matplotlib.pyplot as plt
 import cv2
+from nuscenes.nuscenes import NuScenes
 
 from vox_pillar import pillaring
+nusc = NuScenes(version='v1.0-trainval', dataroot='D:/SCRIPTS/Nuscenes', verbose=True)
 
 X_div = cfg.X_div
 # Y_div = cfg.Y_div
@@ -91,141 +95,184 @@ class SequenceData(Sequence):
 
         label_path = self.LABEL_PATH
         lidar_path = self.LIDAR_PATH
+        radar_path = self.RADAR_PATH
         img_path = self.IMG_PATH
-        dataset = dataset[:-4]
-        # print(dataset)
-        # dataset = '000049'
-        # dataset = '003007'
-
-        # -----C:/Users/Marcelo/Desktop/SCRIPTS/KITTI/object/training/label_2/
-        # label_path = '/home/rtxadmin/Documents/Marcelo/Doc_code/data/label_norm_lidar_v1/'
-        # lidar_path = '/home/rtxadmin/Documents/Marcelo/Doc_code/data/input/lidar_crop/'
         # dataset = dataset[:-4]
-        # dataset = '000169'
-        # dataset = '004283'
-        # dataset = '000266'
+
+
+        my_sample = nusc.get('sample', dataset)
+        
+        RADAR = nusc.get('sample_data', my_sample['data']['RADAR_FRONT'])
+        LIDAR = nusc.get('sample_data', my_sample['data']['LIDAR_TOP'])
+        CAMERA = nusc.get('sample_data', my_sample['data']['CAM_FRONT'])
+
+        my_ego_token = LIDAR['ego_pose_token']
+        
+
+
+        radar_name = RADAR['filename']
+        radar_name = radar_name.replace('samples/RADAR_FRONT/','')
+        radar_name = radar_name.replace('.pcd','.npy')
+        # 'samples/RADAR_FRONT/n015-2018-07-18-11-07-57+0800__RADAR_FRONT__1531883530960489.pcd'
+
+        lidar_name = LIDAR['filename']
+        lidar_name = lidar_name.replace('samples/LIDAR_TOP/','')
+        lidar_name = lidar_name.replace('.pcd.bin','.npy')
+        # 'samples/LIDAR_TOP/n015-2018-07-18-11-07-57+0800__LIDAR_TOP__1531883530949817.pcd.bin'
+
+        camera_name = CAMERA['filename']
+        'samples/CAM_FRONT/n015-2018-07-18-11-07-57+0800__CAM_FRONT__1531883530912460.jpg'
+
+
+
         # -------------------------- INPUT CAM ------------------------------------------
-        img = cv2.imread(img_path + dataset + '.png')
+        img = cv2.imread(Nusc_path + camera_name)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = img/255.
         img = cv2.resize(img,(self.image_shape))
         # -------------------------- INPUT LIDAR ----------------------------------------
+        #             z up  y front
+        #             ^    ^
+        #             |   /
+        #             |  /
+        #             | /
+        #             |/
+        # left ------ 0 ------> x right
 
-        cam3d = np.load(lidar_path + dataset + '.npy')  # [0,1,2] -> Z,X,Y
-        vox_pillar, pos = pillaring(cam3d)  # (10000,20,7)/ (10000,3)
 
-        # print(pos[:4])
-        # pos_ = np.vstack((pos[:,0],pos[:,2]))
-        # pos_ =
-        # pos = (pos[:,:2]).astype(int) # (1000,3)
-        # print(pos[:4])
-        # exit()
-        # ------------------------- Predicting Tensor ---------------------------------
+        # PASSING TO DIFFERENT REFERENCE
+        #               y up  z front
+        #               ^    ^
+        #               |   /
+        #               |  /
+        #               | /
+        #               |/
+        # left x ------ 0 ------>  right
 
-        # label_matrix = np.zeros([X_div, Z_div, 9])
-        # label_matrix[...,1:2] = 0
+        lidar = np.load(lidar_path + lidar_name + '.npy')  # [0,1,2] -> Z,X,Y
+        vox_pillar_L, pos_L = pillaring(lidar)  # (10000,20,7)/ (10000,3)
+
+        # -------------------------- INPUT RADAR ----------------------------------------
+        # Original RADAR   CONFIRM WITH PHOTO
+            #                    X front
+            #               ^    ^
+            #               |   /
+            #               |  /
+            #               | /
+            #               |/
+            # leftY <------ 0 ------  right
+
+            # NUSCENES REFERENCE
+            #                     Y front
+            #               ^    ^
+            #               |   /
+            #               |  /
+            #               | /
+            #               |/
+            # left X ------ 0 ------>  right
+        radar = np.load(radar_path + radar_name + '.npy')  
+        vox_pillar_R, pos_R = pillaring(radar)  # (10,5,5)/ (10,3)
+
+
+
+
+        # ------------------------- ANNOTATION Tensor ---------------------------------
 
         class_matrix = np.zeros([X_div, Z_div, self.nb_anchors, self.nb_classes])
         conf_matrix = np.zeros([X_div, Z_div, self.nb_anchors,1])
         pos_matrix = np.zeros([X_div, Z_div, self.nb_anchors, 3])
         dim_matrix = np.zeros([X_div, Z_div, self.nb_anchors, 3])
         rot_matrix = np.zeros([X_div, Z_div, self.nb_anchors, 1])
+        velo_matrix = np.zeros([X_div, Z_div, self.nb_anchors, 2])
 
-        # anchors = [[0.5,0.5,0.5,a[0],a[1],a[2],a[3]] for a in self.anchor]
-        
+        #             z up  y front
+        #             ^    ^
+        #             |   /
+        #             |  /
+        #             | /
+        #             |/
+        # left ------ 0 ------> x right
 
-        with open(label_path + dataset + '.txt', 'r') as f:
-            label = f.readlines()
+
+        # PASSING TO DIFFERENT REFERENCE
+        #               y up  z front
+        #               ^    ^
+        #               |   /
+        #               |  /
+        #               | /
+        #               |/
+        # left x ------ 0 ------>  right
+
+
+        # with open(label_path + dataset + '.txt', 'r') as f:
+        #     label = f.readlines()
         
-        for l in label:
-            l = l.replace('\n', '')
-            l = l.split(' ')
-            l = np.array(l)
-            maxIou = 0
+        my_ego = nusc.get('ego_pose',my_ego_token)
+
+        my_pos = my_ego['translation']
+
+        for i in range(len(my_sample['anns'])):
+            my_annotation_token = my_sample['anns'][i]
+            label = nusc.get('sample_annotation', my_annotation_token)
+            category = label['category_name']
+
+            pos_x = (label['translation'][0] - my_pos[0])   # original X --->  X  changed
+            pos_y = (label['translation'][1] - my_pos[2])   # original Y --->  Z  changed
+            pos_z = (label['translation'][2] - my_pos[1])   # original Z --->  Y  changed
+
+            width = label['size'][0]
+            lenght = label['size'][1]
+            height = label['size'][2]
+            
+            quaternion = label['rotation']
+            rot = 2*np.arccos(quaternion[0])
+
+            velo_x = nusc.box_velocity(my_annotation_token)[0]
+            velo_z = nusc.box_velocity(my_annotation_token)[1]
+
+            # l = l.replace('\n', '')
+            # l = l.split(' ')
+            # l = np.array(l)
+            # maxIou = 0
             #######  Normalizing the Data ########
-            if l[0] in self.classes_names:
+            if category in self.classes_names:
                 cla = int(self.classes[l[0]])
-                norm_x = (float(l[11]) + abs(self.x_min)) / (
+
+                norm_x = (pos_x + abs(self.x_min)) / (
                             self.x_max - self.x_min)  # Center Position X in relation to max X 0-1
-                norm_y = (float(l[12]) + abs(self.y_min)) / (
+                norm_y = (pos_y + abs(self.y_min)) / (
                             self.y_max - self.y_min)  # Center Position Y in relation to max Y 0-1
-                norm_z = (float(l[13]) + abs(self.z_min)) / (
+                norm_z = (pos_z + abs(self.z_min)) / (
                             self.z_max - self.z_min)  # Center Position Z in relation to max Z 0-1
 
-                norm_w = float(l[9]) / (self.x_max - self.x_min)  # Dimension W in relation to max X 0-1
-                norm_h = float(l[8]) / (self.y_max - self.y_min)  # Dimension H in relation to max Y 0-1
-                norm_l = float(l[10]) / (self.z_max - self.z_min)  # Dimension L in relation to max Z 0-1
+                out_of_size = np.array([norm_x, norm_y, norm_z])
 
-                rot = float(l[14])
-                # if rot < 0: rot = -rot
-                norm_rot = rot / self.rot_max  # Rotation in relation to max Rot in Y axis 0-1
-
-                out_of_size = np.array([norm_x, norm_y, norm_z, norm_w, norm_h, norm_l, norm_rot])
-                # print(cla)
-                # print(out_of_size)
-                # print('\n')
-                if np.any(out_of_size > 1):
+                if np.any(out_of_size > 1) or np.any([velo_x,velo_z] == np.nan):
                     continue
                 else:
                     loc = [X_div * norm_x, Z_div * norm_z]
 
                     loc_i = int(loc[0])
-                    # loc_j = int(loc[1])
                     loc_k = int(loc[1])
 
-                    # x_cell = loc[0] - loc_i
-                    # y_cell = norm_y
-                    # z_cell = loc[1] - loc_k
-
-                    # w_cell = norm_w * X_div
-                    # h_cell = norm_h
-                    # l_cell = norm_l * Z_div
-
-                    # lbl = [0, 0, 0, float(l[9]), float(l[8]), float(l[10]), norm_rot]
-                    #
-                    # iou = [iou2d(a, lbl) for a in anchors]
-                    # print('Lbl: ',lbl)
-                    # print('IoU:',iou,'\n')
-                    
                     if conf_matrix[loc_i, loc_k, 0] == 0:
-                        # print('Car')
-                        # min_i, max_i = np.clip(loc_i - 3, 0, X_div), np.clip(loc_i + 4, 0, X_div)
-                        # min_k, max_k = np.clip(loc_k - 3, 0, Z_div), np.clip(loc_k + 4, 0, Z_div)
-                        # x_central_real = loc_i*(0.16)* 2 + self.x_min
-                        # print(x_central_real)
-                        # print(float(l[11]))
-                        # exit()
-                        # z_central_real = loc_k*(0.16)* 2 + self.z_min
 
-                        x_central_real = float(l[11])
-                        z_central_real = float(l[13])
-
-                        lbl = [x_central_real, float(l[12]), z_central_real, float(l[9]), float(l[8]), float(l[10]), rot]
+                        lbl = [pos_x, pos_y, pos_z, width, height, lenght, rot]
                         
                         diag = [np.sqrt(pow(a[0],2)+pow(a[2],2)) for a in self.anchor]
-                        # print(float(l[11]))
-                        # print(anchors)
-                        # exit()
                         for i in range(-1,2):
                             for j in range(-1,2):
                                 if (0 < loc_i + i < X_div) and (0 < loc_k + j < Z_div):
                                     # x_v = (loc_i+i)*(0.16)* 2 + self.x_min # Real --- xId * xStep * downscalingFactor + xMin;
                                     # z_v = (loc_k+j)*(0.16)* 2 + self.z_min # Real --- zId * zStep * downscalingFactor + zMin;
 
-                                    # x_v = float(l[11])+abs(self.x_min) + (i*x_step*2)
-                                    # z_v = float(l[13])+abs(self.z_min) + (j*z_step*2)
-
                                     anchors = [[((loc_i+i) * x_step*2)+self.x_min, a[3], ((loc_k+j) * z_step*2)+self.z_min, a[0], a[1], a[2], a[4]] for a in self.anchor]
 
-                                    # print(lbl)
-                                    # print(anchors[0])
                                     iou = [iou2d(a, lbl) for a in anchors]
                                     if np.max(iou) > maxIou:
                                         maxIou = np.max(iou)
                                         best_a = iou.index(maxIou)
-                                        best_lbl = lbl
-                                    # print(iou)
-                                    # exit()
+
                                     for a in range(self.nb_anchors):
                                         if iou[a] > self.pos_iou:
                                             conf_matrix[loc_i+i, loc_k+j, a, 0] = 1  # - abs(x_v) - abs(z_v) #Implement Probability
@@ -246,6 +293,7 @@ class SequenceData(Sequence):
                                             pos_matrix[loc_i+i, loc_k+j, a, :] = [x_cell, y_cell, z_cell]
                                             dim_matrix[loc_i+i, loc_k+j, a, :] = [w_cell, h_cell, l_cell]
                                             rot_matrix[loc_i+i, loc_k+j, a, 0] = rot_cell
+                                            velo_matrix[loc_i+i, loc_k+j, a, :] =    
 
                                         elif iou[a] < self.neg_iou:
                                             conf_matrix[loc_i+i, loc_k+j, a, 0] = 0
@@ -258,15 +306,15 @@ class SequenceData(Sequence):
                             # print(x_v)
                             # print(anchors[a][0])
                             
-                            x_cell = (best_lbl[0] - anchors[best_a][0])/ diag[best_a]
-                            y_cell = (best_lbl[1] - anchors[best_a][1])/anchors[best_a][4]
-                            z_cell = (best_lbl[2] - anchors[best_a][2])/ diag[best_a]
+                            x_cell = (lbl[0] - anchors[best_a][0])/ diag[best_a]
+                            y_cell = (lbl[1] - anchors[best_a][1])/anchors[best_a][4]
+                            z_cell = (lbl[2] - anchors[best_a][2])/ diag[best_a]
 
-                            w_cell = np.log(np.clip((best_lbl[3]/anchors[best_a][3]),1e-15,1e+15))
-                            h_cell = np.log(np.clip((best_lbl[4]/anchors[best_a][4]),1e-15,1e+15))
-                            l_cell = np.log(np.clip((best_lbl[5]/anchors[best_a][5]),1e-15,1e+15))
+                            w_cell = np.log(np.clip((lbl[3]/anchors[best_a][3]),1e-15,1e+15))
+                            h_cell = np.log(np.clip((lbl[4]/anchors[best_a][4]),1e-15,1e+15))
+                            l_cell = np.log(np.clip((lbl[5]/anchors[best_a][5]),1e-15,1e+15))
 
-                            rot_cell = np.sin(best_lbl[6] - anchors[best_a][6])
+                            rot_cell = np.sin(lbl[6] - anchors[best_a][6])
 
                             pos_matrix[loc_i, loc_k, best_a, :] = [x_cell, y_cell, z_cell]
                             dim_matrix[loc_i, loc_k, best_a, :] = [w_cell, h_cell, l_cell]
@@ -292,28 +340,39 @@ class SequenceData(Sequence):
 
         # print(output.shape)
         # exit()
-        return vox_pillar, pos, output, img
+        return vox_pillar_L, pos_L, vox_pillar_R, pos_R,img, output
 
     def data_generation(self, batch_datasets):
-        pillar = []
-        pillar_pos = []
-        lbl = []
+        pillar_L = []
+        pillar_pos_L = []
+        pillar_R = []
+        pillar_pos_R = []
         imgs = []
+        lbl = []
+        
         for dataset in batch_datasets:
-            vox_pillar, pos, output, img = self.read(dataset)
-            pillar.append(vox_pillar)
-            pillar_pos.append(pos)
-            lbl.append(output)
+            vox_pillar_L, pos_L, vox_pillar_R, pos_R, img, output  = self.read(dataset)
+
+            pillar_L.append(vox_pillar_L)
+            pillar_pos_L.append(pos_L)
+
+            pillar_R.append(vox_pillar_R)
+            pillar_pos_R.append(pos_R)
+
             imgs.append(img)
 
-        X_p = np.array(pillar)
-        X_pos = np.array(pillar_pos)
+            lbl.append(output)
+            
+
+        X_pL = np.array(pillar_L)
+        X_posL = np.array(pillar_pos_L)
+        X_pR = np.array(pillar_R)
+        X_posR = np.array(pillar_pos_R)
         X_imgs = np.array(imgs)
-        X = [X_p, X_pos, X_imgs]
+
+        X = [X_pL, X_posL, X_pR, X_posR, X_imgs]
         
         lbl = np.array(lbl)
-
-        # labels = [lbl_conf, lbl_pos, lbl_dim, lbl_rot, lbl_class]
 
         return X, lbl
 
