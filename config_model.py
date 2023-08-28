@@ -53,16 +53,20 @@ nb_classes = 1
 #                }
 classes = {"vehicle.car":               0
                }
-
+#KITTI
 # # width,height,lenght,orientation
 # anchor = np.array([ [1.6,1.56,3.9,-1, 0],
 #                     [1.6,1.56,3.9,-1, 1.57],
 #                     [0.6,1.73,0.8,-0.6, 0],
 #                     [0.6,1.73,0.8,-0.6, 1.57]], dtype=np.float32).tolist()
 
-anchor = np.array([ [1.6,1.56,3.9,-1, 0],
-                    [1.6,1.56,3.9,-1, 1.57]], dtype=np.float32).tolist()
+# anchor = np.array([ [1.6,1.56,3.9,-1, 0],
+#                     [1.6,1.56,3.9,-1, 1.57]], dtype=np.float32).tolist()
 
+
+#Nuscenes
+anchor = np.array([ [1.95,1.73,4.62, 0, 0],
+                    [1.95,1.73,4.62, 0, 1.57]], dtype=np.float32).tolist()
 
 trust_treshold = 0.5
 positive_iou_threshold = 0.6
@@ -117,7 +121,7 @@ lambda_occ = 0.5
 lambda_pos = 5.0
 lambda_dim = 5.0
 lambda_rot = 5.0
-lambda_velo = 0.1
+lambda_velo = 5
 
 # ######################### LW 3
 # lambda_class = 0.2
@@ -139,6 +143,10 @@ y_diff = abs(y_max - y_min)
 z_min = 0
 z_max = 80
 z_diff = abs(z_max - z_min)
+
+vel_min = -20
+vel_max = 20
+
 
 # w_max = 3
 # h_max = 4.5

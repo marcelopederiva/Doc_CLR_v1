@@ -49,6 +49,10 @@ class SequenceData(Sequence):
         self.z_min = cfg.z_min
 
         self.rot_max = cfg.rot_norm
+
+        self.vel_max = cfg.vel_max
+        self.vel_min = cfg.vel_min
+
         self.classes_names = [k for k, v in self.classes.items()]
 
         # self.w_max = cfg.w_max
@@ -250,9 +254,14 @@ class SequenceData(Sequence):
                 norm_z = (pos_z + abs(self.z_min)) / (
                             self.z_max - self.z_min)  # Center Position Z in relation to max Z 0-1
 
-                out_of_size = np.array([norm_x, norm_y, norm_z])
+                norm_vel_x = (velo_x + abs(self.vel_min)) / (
+                            self.vel_max - self.vel_min)  # Norm velocity 0-1
+                norm_vel_z = (velo_z + abs(self.vel_min)) / (
+                            self.vel_max - self.vel_min)  # Norm velocity 0-1
+                
+                out_of_size = np.array([norm_x, norm_y, norm_z,norm_vel_x, norm_vel_z])
 
-                if np.any(out_of_size > 1) or np.any([velo_x,velo_z] == np.nan):
+                if np.any(out_of_size > 1) or (np.isnan(velo_x[0]) or np.isnan(velo_z[1])):
                     continue
                 else:
                     loc = [X_div * norm_x, Z_div * norm_z]
@@ -298,8 +307,8 @@ class SequenceData(Sequence):
                                             pos_matrix[loc_i+i, loc_k+j, a, :] = [x_cell, y_cell, z_cell]
                                             dim_matrix[loc_i+i, loc_k+j, a, :] = [w_cell, h_cell, l_cell]
                                             rot_matrix[loc_i+i, loc_k+j, a, 0] = rot_cell
-                                            velo_matrix[loc_i+i, loc_k+j, a, 0] = velo_x   
-                                            velo_matrix[loc_i+i, loc_k+j, a, 1] = velo_z   
+                                            velo_matrix[loc_i+i, loc_k+j, a, 0] = norm_vel_x   
+                                            velo_matrix[loc_i+i, loc_k+j, a, 1] = norm_vel_z   
 
                                         elif iou[a] < self.neg_iou:
                                             conf_matrix[loc_i+i, loc_k+j, a, 0] = 0
@@ -325,8 +334,8 @@ class SequenceData(Sequence):
                             pos_matrix[loc_i, loc_k, best_a, :] = [x_cell, y_cell, z_cell]
                             dim_matrix[loc_i, loc_k, best_a, :] = [w_cell, h_cell, l_cell]
                             rot_matrix[loc_i, loc_k, best_a, 0] = rot_cell
-                            velo_matrix[loc_i+i, loc_k+j, best_a, 0] = velo_x   
-                            velo_matrix[loc_i+i, loc_k+j, best_a, 1] = velo_z 
+                            velo_matrix[loc_i+i, loc_k+j, best_a, 0] = norm_vel_x   
+                            velo_matrix[loc_i+i, loc_k+j, best_a, 1] = norm_vel_z 
 
                 # print(maxIou)
             else:
