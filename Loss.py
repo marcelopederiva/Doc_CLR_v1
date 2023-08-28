@@ -37,6 +37,7 @@ lambda_occ = cfg.lambda_occ
 lambda_pos = cfg.lambda_pos
 lambda_dim = cfg.lambda_dim
 lambda_rot = cfg.lambda_rot
+lambda_velo = cfg.lambda_velo
 # Smooth_L1 = tf.keras.losses.Huber(reduction = 'none')
 
 def Smooth_L1(label,pos):
@@ -176,12 +177,29 @@ def angle_loss(y_true, y_pred):
 
     return lambda_rot * aloss
 
+def velo_loss(y_true, y_pred):
+    
+    mask = y_true[...,0]
+    mask_velo = tf.tile(tf.expand_dims(mask, -1), [1, 1, 1, 1, 2])
+
+    Npos = tf.clip_by_value(tf.reduce_sum(mask),1,1e+15)
+    y_true = y_true[...,8:10]
+    y_pred = y_pred[...,8:10]
+
+    loss = Smooth_L1(y_true,y_pred)
+
+    velo_loss = tf.math.multiply(mask_velo, loss)
+
+    lloss = tf.reduce_sum(velo_loss)/(Npos)
+
+    return lambda_velo * lloss
+
 def class_loss(y_true, y_pred):
     mask = y_true[...,0]
 
     Npos = tf.clip_by_value(tf.reduce_sum(mask),1,1e+15)
-    y_true = y_true[...,8]
-    y_pred = y_pred[...,8]
+    y_true = y_true[...,10]
+    y_pred = y_pred[...,10]
     mask_ = tf.equal(mask, 1)
     mask_class = tf.cast(tf.math.logical_or(mask_[...,0],mask_[...,1]), dtype = tf.float32)
     loss = tf.nn.softmax_cross_entropy_with_logits(labels=y_true, logits=y_pred)
@@ -194,22 +212,24 @@ def class_loss(y_true, y_pred):
     return lambda_class * cls_
 
 
-def PointPillarNetworkLoss(y_true,y_pred):
+def Loss(y_true,y_pred):
 
     focal_loss_ = focal_loss(y_true,y_pred)
     loc_loss_ = loc_loss(y_true,y_pred)
     size_loss_ = size_loss(y_true,y_pred)
     angle_loss_ = angle_loss(y_true,y_pred)
     class_loss_ = class_loss(y_true,y_pred)
+    velo_loss_ = velo_loss(y_true,y_pred)
     # Testing
-    # print(focal_loss_)
-    # print(loc_loss_)
-    # print(size_loss_)
-    # print(angle_loss_)
-    # print(class_loss_)
+    print('Focal loss: ', focal_loss_)
+    print('Loc loss: ', loc_loss_)
+    print('Size loss: ', size_loss_)
+    print('Angle loss: ', angle_loss_)
+    print('Velo loss: ', velo_loss_)
+    print('Class loss: ', class_loss_)
 
     # exit()
-    total_loss = focal_loss_+ loc_loss_+ size_loss_+ angle_loss_+ class_loss_
+    total_loss = focal_loss_+ loc_loss_+ size_loss_+ angle_loss_+ velo_loss_ + class_loss_
 
     return total_loss
 
@@ -232,6 +252,10 @@ if __name__=='__main__':
                        [[[0],[0]],[[0],[0]],[[0],[1]]],
                        [[[0],[0]],[[0],[0]],[[0],[0]]]]])
     
+    velo_t = K.constant([[[[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]]],
+                       [[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[-2,-3]]],
+                       [[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]]]]])
+    
     class_t = K.constant([[[[[0],[0]],[[0],[0]],[[0],[0]]],
                        [[[0],[0]],[[0],[0]],[[0],[1]]],
                        [[[0],[0]],[[0],[0]],[[0],[0]]]]])
@@ -252,6 +276,10 @@ if __name__=='__main__':
                        [[[0],[0]],[[0],[0]],[[0],[1]]],
                        [[[0],[0]],[[0],[0]],[[0],[0]]]]])
     
+    velo_p = K.constant([[[[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]]],
+                       [[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]]],
+                       [[[0,0],[0,0]],[[0,0],[0,0]],[[0,0],[0,0]]]]])
+    
     class_p = K.constant([[[[[0],[0]],[[0],[0]],[[0],[0]]],
                        [[[0],[0]],[[0],[0]],[[0],[10]]],
                        [[[0],[0]],[[0],[0]],[[0],[0]]]]])
@@ -259,12 +287,12 @@ if __name__=='__main__':
 
     # occ_t = K.constant(occ_t)
     
-    pred = K.concatenate([occ_p,pos_p,size_p,angle_p,class_p])
-    true = K.concatenate([occ_t,pos_t,size_t,angle_t,class_t])
+    pred = K.concatenate([occ_p,pos_p,size_p,angle_p,velo_p, class_p])
+    true = K.concatenate([occ_t,pos_t,size_t,angle_t,velo_t, class_t])
     # print(pred.shape)
     # for x in true: print(x.shape)
     # 
     # print(pred)
     # exit()
-    print('\nLoss Score: ', K.eval(PointPillarNetworkLoss(true, pred)))
+    print('\nLoss Score: ', K.eval(Loss(true, pred)))
     # exit()

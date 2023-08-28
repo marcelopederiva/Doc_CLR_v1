@@ -3,10 +3,10 @@ from collections import defaultdict
 import config_model as cfg
 # import open3d as o3d
 image_size = cfg.img_shape
-input_pillar_shape = cfg.input_pillar_shape
-input_pillar_indices_shape = cfg.input_pillar_indices_shape
-max_group = cfg.max_group
-max_pillars = cfg.max_pillars
+input_pillar_l_shape = cfg.input_pillar_l_shape
+input_pillar_l_indices_shape = cfg.input_pillar_l_indices_shape
+max_group = cfg.max_group_l
+max_pillars = cfg.max_pillars_l
 
 
 x_min = cfg.x_min
@@ -28,7 +28,7 @@ from collections import defaultdict
 # np.set_printoptions(precision=3, suppress= True)
 
 
-def pillaring (cam_3d):
+def pillaring_l(cam_3d):
     # Normalizing the data
   # x = -40/40 ----> 80
   # y = -2/6 ----> 8
@@ -51,8 +51,8 @@ def pillaring (cam_3d):
   # print(cam_3d.shape)
   # exit()
 
-  cam_3d[:, 1] = - cam_3d[:, 1]
-  # cam_3d[:, 2] = - cam_3d[:, 2]
+  # cam_3d[:, 1] = - cam_3d[:, 1]
+
 
   norm_i =  np.zeros((cam_3d.shape))
   real_3d =  np.zeros((cam_3d.shape))
@@ -102,9 +102,9 @@ def pillaring (cam_3d):
   # print(dic_pillar)
   # exit()
   # Creating the pillar in each grid cell/ Creating the mean count of each grid cell
-  vox_pillar = np.zeros(input_pillar_shape)
-  vox_pillar_mean = np.zeros(input_pillar_indices_shape)
-  vox_pillar_indices = np.zeros(input_pillar_indices_shape)
+  vox_pillar = np.zeros(input_pillar_l_shape)
+  vox_pillar_mean = np.zeros(input_pillar_l_indices_shape)
+  vox_pillar_indices = np.zeros(input_pillar_l_indices_shape)
   j=0
   # print('norm')
   # print(norm)

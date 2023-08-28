@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 import cv2
 from nuscenes.nuscenes import NuScenes
 
-from vox_pillar import pillaring
+from vox_pillar_l import pillaring_l
+from vox_pillar_r import pillaring_r
 nusc = NuScenes(version='v1.0-trainval', dataroot='D:/SCRIPTS/Nuscenes', verbose=True)
 
 X_div = cfg.X_div
@@ -110,23 +111,25 @@ class SequenceData(Sequence):
         
 
 
-        radar_name = RADAR['filename']
-        radar_name = radar_name.replace('samples/RADAR_FRONT/','')
-        radar_name = radar_name.replace('.pcd','.npy')
+        # radar_name = RADAR['filename']
+        # radar_name = radar_name.replace('samples/RADAR_FRONT/','')
+        # radar_name = radar_name.replace('.pcd','.npy')
         # 'samples/RADAR_FRONT/n015-2018-07-18-11-07-57+0800__RADAR_FRONT__1531883530960489.pcd'
 
-        lidar_name = LIDAR['filename']
-        lidar_name = lidar_name.replace('samples/LIDAR_TOP/','')
-        lidar_name = lidar_name.replace('.pcd.bin','.npy')
+        # lidar_name = LIDAR['filename']
+        # lidar_name = lidar_name.replace('samples/LIDAR_TOP/','')
+        # lidar_name = lidar_name.replace('.pcd.bin','.npy')
         # 'samples/LIDAR_TOP/n015-2018-07-18-11-07-57+0800__LIDAR_TOP__1531883530949817.pcd.bin'
 
-        camera_name = CAMERA['filename']
-        'samples/CAM_FRONT/n015-2018-07-18-11-07-57+0800__CAM_FRONT__1531883530912460.jpg'
+        # camera_name = CAMERA['filename']
+        # lidar_name = lidar_name.replace('samples/LIDAR_TOP/','')
+        # lidar_name = lidar_name.replace('.pcd.bin','.npy')
+        # 'samples/CAM_FRONT/n015-2018-07-18-11-07-57+0800__CAM_FRONT__1531883530912460.jpg'
 
 
 
         # -------------------------- INPUT CAM ------------------------------------------
-        img = cv2.imread(Nusc_path + camera_name)
+        img = cv2.imread(Nusc_path + dataset+ '.jpg')
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = img/255.
         img = cv2.resize(img,(self.image_shape))
@@ -140,7 +143,7 @@ class SequenceData(Sequence):
         # left ------ 0 ------> x right
 
 
-        # PASSING TO DIFFERENT REFERENCE
+        # PASSED TO DIFFERENT REFERENCE
         #               y up  z front
         #               ^    ^
         #               |   /
@@ -149,8 +152,8 @@ class SequenceData(Sequence):
         #               |/
         # left x ------ 0 ------>  right
 
-        lidar = np.load(lidar_path + lidar_name + '.npy')  # [0,1,2] -> Z,X,Y
-        vox_pillar_L, pos_L = pillaring(lidar)  # (10000,20,7)/ (10000,3)
+        lidar = np.load(lidar_path + dataset + '.npy')  # [0,1,2] -> Z,X,Y
+        vox_pillar_L, pos_L = pillaring_l(lidar)  # (10000,20,7)/ (10000,3)
 
         # -------------------------- INPUT RADAR ----------------------------------------
         # Original RADAR   CONFIRM WITH PHOTO
@@ -170,8 +173,8 @@ class SequenceData(Sequence):
             #               | /
             #               |/
             # left X ------ 0 ------>  right
-        radar = np.load(radar_path + radar_name + '.npy')  
-        vox_pillar_R, pos_R = pillaring(radar)  # (10,5,5)/ (10,3)
+        radar = np.load(radar_path + dataset + '.npy')  
+        vox_pillar_R, pos_R = pillaring_r(radar)  # (10,5,5)/ (10,3)
 
 
 
@@ -217,8 +220,8 @@ class SequenceData(Sequence):
             category = label['category_name']
 
             pos_x = (label['translation'][0] - my_pos[0])   # original X --->  X  changed
-            pos_y = (label['translation'][1] - my_pos[2])   # original Y --->  Z  changed
-            pos_z = (label['translation'][2] - my_pos[1])   # original Z --->  Y  changed
+            pos_y = (label['translation'][2] - my_pos[2])   # original Y --->  Z  changed
+            pos_z = (label['translation'][1] - my_pos[1])   # original Z --->  Y  changed
 
             width = label['size'][0]
             lenght = label['size'][1]
@@ -234,6 +237,8 @@ class SequenceData(Sequence):
             # l = l.split(' ')
             # l = np.array(l)
             # maxIou = 0
+
+            
             #######  Normalizing the Data ########
             if category in self.classes_names:
                 cla = int(self.classes[l[0]])
@@ -293,7 +298,8 @@ class SequenceData(Sequence):
                                             pos_matrix[loc_i+i, loc_k+j, a, :] = [x_cell, y_cell, z_cell]
                                             dim_matrix[loc_i+i, loc_k+j, a, :] = [w_cell, h_cell, l_cell]
                                             rot_matrix[loc_i+i, loc_k+j, a, 0] = rot_cell
-                                            velo_matrix[loc_i+i, loc_k+j, a, :] =    
+                                            velo_matrix[loc_i+i, loc_k+j, a, 0] = velo_x   
+                                            velo_matrix[loc_i+i, loc_k+j, a, 1] = velo_z   
 
                                         elif iou[a] < self.neg_iou:
                                             conf_matrix[loc_i+i, loc_k+j, a, 0] = 0
@@ -319,6 +325,8 @@ class SequenceData(Sequence):
                             pos_matrix[loc_i, loc_k, best_a, :] = [x_cell, y_cell, z_cell]
                             dim_matrix[loc_i, loc_k, best_a, :] = [w_cell, h_cell, l_cell]
                             rot_matrix[loc_i, loc_k, best_a, 0] = rot_cell
+                            velo_matrix[loc_i+i, loc_k+j, best_a, 0] = velo_x   
+                            velo_matrix[loc_i+i, loc_k+j, best_a, 1] = velo_z 
 
                 # print(maxIou)
             else:
@@ -336,11 +344,11 @@ class SequenceData(Sequence):
         # print(dim_matrix.shape)
         # print(rot_matrix.shape)
         # print(class_matrix.shape)
-        output = np.concatenate((conf_matrix, pos_matrix, dim_matrix, rot_matrix, class_matrix), axis=-1)
+        output = np.concatenate((conf_matrix, pos_matrix, dim_matrix, rot_matrix, velo_matrix, class_matrix), axis=-1)
 
         # print(output.shape)
         # exit()
-        return vox_pillar_L, pos_L, vox_pillar_R, pos_R,img, output
+        return vox_pillar_L, pos_L, vox_pillar_R, pos_R, img, output
 
     def data_generation(self, batch_datasets):
         pillar_L = []
@@ -381,7 +389,7 @@ if __name__ == '__main__':
     # dataset_path = 'C:/Users/Marcelo/Desktop/SCRIPTS/MySCRIPT/Doc_code/data/'
     # dataset_path = 'D:/SCRIPTS/Doc_code/data/'
     dataset_path = '/home/rtxadmin/Documents/Marcelo/Doc_code/data/'
-    input_shape = (504, 504, 3)
+    input_shape = (512, 512, 3)
     batch_size = 1
     train_gen = SequenceData('train', dir=dataset_path, target_size=input_shape, batch_size=batch_size, data_aug=False)
     # train_gen[2]

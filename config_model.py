@@ -4,8 +4,12 @@ import numpy as np
 # input_pillar_shape = (10000, 20, 9)
 # input_pillar_indices_shape = (10000, 3)
 ''' **************  SHAPE  *****************  '''
-input_pillar_shape = (12000, 100, 9)
-input_pillar_indices_shape = (12000, 3)
+input_pillar_l_shape = (12000, 100, 9)
+input_pillar_l_indices_shape = (12000, 3)
+
+input_pillar_r_shape = (100, 10, 4)
+input_pillar_r_indices_shape = (100, 3)
+
 img_shape = (512,512)
 
 ''' **************  DIVISIONS  *****************  '''
@@ -23,8 +27,12 @@ Z_div = 256
 # nb_channels = 64
 
 ''' **************  PILLAR  *****************  '''
-max_group = 100
-max_pillars = 12000
+max_group_l = 100
+max_pillars_l = 12000
+
+max_group_r = 10
+max_pillars_r = 100
+
 nb_channels = 64
 # nb_anchors = 4
 nb_anchors = 2
@@ -41,7 +49,9 @@ nb_anchors = 2
 
 nb_classes = 1
 
-classes = {"Car":               0
+# classes = {"Car":               0
+#                }
+classes = {"vehicle.car":               0
                }
 
 # # width,height,lenght,orientation
@@ -107,6 +117,7 @@ lambda_occ = 0.5
 lambda_pos = 5.0
 lambda_dim = 5.0
 lambda_rot = 5.0
+lambda_velo = 0.1
 
 # ######################### LW 3
 # lambda_class = 0.2
