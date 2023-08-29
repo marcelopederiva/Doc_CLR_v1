@@ -65,9 +65,9 @@ def pillaring_l(cam_3d):
 
 
 
-    norm_i[i,0] = norm[i,0] =  (cam_3d[i,1]-x_min)/(x_diff)
-    norm_i[i,1] = (cam_3d[i,2]-y_min)/(y_diff)
-    norm_i[i,2] = norm[i,1] = (cam_3d[i,0]-z_min)/(z_diff)
+    norm_i[i,0] = norm[i,0] =  (cam_3d[i,0]-x_min)/(x_diff)
+    norm_i[i,1] = (cam_3d[i,1]-y_min)/(y_diff)
+    norm_i[i,2] = norm[i,1] = (cam_3d[i,2]-z_min)/(z_diff)
     norm_i[i,3] = cam_3d[i,3]
     # norm[i,0] = (cam_3d[i,1]-x_min)/(x_diff)
     # norm[i,1] = (cam_3d[i,0]-z_min)/(z_diff)
@@ -126,8 +126,8 @@ def pillaring_l(cam_3d):
       # vox_pillar_mean[j,2]+= real_3d[id,2:3] # Sum of Z in the group
 
       vox_pillar[j,k,:4] = norm_i[id] # copy the X Y Z r from the LIDAR
-      vox_pillar[j,k,7:8] = abs((norm[id,0] - key[0]) - 0.5) # Distance of the X point to the middle Pillar
-      vox_pillar[j,k,8:9] = abs((norm[id,1] - key[1]) - 0.5) # Distance of the Z point to the middle Pillar
+      vox_pillar[j,k,7:8] = abs((norm[id,0] - key[0])) # Distance of the X point to the middle Pillar
+      vox_pillar[j,k,8:9] = abs((norm[id,1] - key[1])) # Distance of the Z point to the middle Pillar
     
 
       vox_pillar_mean[j,0]+= norm_i[id,0:1] # Sum of X in the group
@@ -164,6 +164,6 @@ def pillaring_l(cam_3d):
   #                                               r = Lidar reflectance
   #                                               Xo,Yo,Zo = offset of Lidar norm and the mean
   #                                                         of all group detections
-  #                                               Xp,Zp = diff from the center of Pillar (0.5,0.5)
+  #                                               Xp,Zp = diff from the center of Pillar
   return vox_pillar,vox_pillar_indices
 

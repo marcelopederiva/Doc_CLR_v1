@@ -132,16 +132,30 @@ lambda_velo = 5
 ''' **************  NORMALIZATION  *****************  '''
 #Norm Final -- KITTI ---- Best Until the moment
 
-x_min = -40
-x_max = 40
+# x_min = -40
+# x_max = 40
+# x_diff = abs(x_max - x_min)
+
+# y_min = -2
+# y_max = 6
+# y_diff = abs(y_max - y_min)
+
+# z_min = 0
+# z_max = 80
+# z_diff = abs(z_max - z_min)
+
+#Norm Final -- NUSCENES ----
+
+x_min = -80
+x_max = 80
 x_diff = abs(x_max - x_min)
 
-y_min = -2
+y_min = -2.5
 y_max = 6
 y_diff = abs(y_max - y_min)
 
 z_min = 0
-z_max = 80
+z_max = 100
 z_diff = abs(z_max - z_min)
 
 vel_min = -20
