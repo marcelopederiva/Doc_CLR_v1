@@ -86,18 +86,19 @@ LEARNING_RATE = 2e-4
 DECAY_RATE = 1e-8
 
 ''' **************  PATHS  *****************  '''
-DATASET_PATH = '/home/rtxadmin/Documents/Marcelo/Doc_code/data/'
+DATASET_PATH = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/'
 
-TRAIN_TXT = 'train_80_car.txt'
-VAL_TXT = 'val_20_car.txt'
+TRAIN_TXT = 'train_80_NS.txt'
+VAL_TXT = 'val_20_NS.txt'
 # TRAIN_TXT = 'train_80.txt'
 # VAL_TXT = 'val_20.txt'
 
 # LABEL_PATH = 'D:/SCRIPTS/Doc_code/data/label_2/'
 # LIDAR_PATH = 'D:/SCRIPTS/Doc_code/data/input/lidar_crop_mini/'
-LABEL_PATH = '/home/rtxadmin/Documents/Marcelo/KITTI/label_2/'
-LIDAR_PATH = '/home/rtxadmin/Documents/Marcelo/Doc_code/data/input/lidar_crop/'
-IMG_PATH = '/home/rtxadmin/Documents/Marcelo/Img_datasets/KITTI_img/'
+NUSC_PATH = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/'
+LIDAR_PATH = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/Lidar/'
+RADAR_PATH = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/Radar_S/'
+IMG_PATH = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/Img_S/'
 
 ''' **************  LAMBDA WEIGHTS  *****************  '''
 
@@ -117,11 +118,11 @@ IMG_PATH = '/home/rtxadmin/Documents/Marcelo/Img_datasets/KITTI_img/'
 
 ######################### LW 2
 lambda_class = 0.2
-lambda_occ = 0.5
-lambda_pos = 5.0
-lambda_dim = 5.0
-lambda_rot = 5.0
-lambda_velo = 5
+lambda_occ   = 0.5
+lambda_pos   = 5.0
+lambda_dim   = 5.0
+lambda_rot   = 5.0
+lambda_velo  = 5.0
 
 # ######################### LW 3
 # lambda_class = 0.2
@@ -132,31 +133,31 @@ lambda_velo = 5
 ''' **************  NORMALIZATION  *****************  '''
 #Norm Final -- KITTI ---- Best Until the moment
 
-# x_min = -40
-# x_max = 40
-# x_diff = abs(x_max - x_min)
-
-# y_min = -2
-# y_max = 6
-# y_diff = abs(y_max - y_min)
-
-# z_min = 0
-# z_max = 80
-# z_diff = abs(z_max - z_min)
-
-#Norm Final -- NUSCENES ----
-
-x_min = -80
-x_max = 80
+x_min = -40
+x_max = 40
 x_diff = abs(x_max - x_min)
 
-y_min = -2.5
+y_min = -2
 y_max = 6
 y_diff = abs(y_max - y_min)
 
 z_min = 0
-z_max = 100
+z_max = 80
 z_diff = abs(z_max - z_min)
+
+#Norm Final -- NUSCENES ----
+
+# x_min = -80
+# x_max = 80
+# x_diff = abs(x_max - x_min)
+
+# y_min = -2.5
+# y_max = 6
+# y_diff = abs(y_max - y_min)
+
+# z_min = 0
+# z_max = 100
+# z_diff = abs(z_max - z_min)
 
 vel_min = -20
 vel_max = 20

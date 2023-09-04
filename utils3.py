@@ -4,7 +4,9 @@ from matplotlib.lines import Line2D
 from inter_area import intersection_area
 import numpy as np
 import config_model as cfg
-
+import cv2
+from lidar_utils import lidar_on_cam
+from lidar_utils_VIDEO import velo3d_2_camera2d_points
 Sx = cfg.X_div
 Sy = cfg.Y_div
 Sz = cfg.Z_div
@@ -143,6 +145,8 @@ def iou3d(label,predict):
 
     rot_label = right_rot(label[6] )
     rot_pred = right_rot(predict[6])
+    # rot_label = label[6]
+    # rot_pred = predict[6]
 
     # rot_label = label[6]  +3.1416/2
     # rot_pred = predict[6] +3.1416/2
@@ -204,7 +208,8 @@ def get_3d_box(box_size):
 
     z_corners = [l / 2, l / 2, -l / 2, -l / 2, l / 2, l / 2, -l / 2, -l / 2]
     x_corners = [w / 2, -w / 2, -w / 2, w / 2, w / 2, -w / 2, -w / 2, w / 2]
-    y_corners = [h / 2, h / 2, h / 2, h / 2, -h / 2, -h / 2, -h / 2, -h / 2]
+    # y_corners = [h / 2, h / 2, h / 2, h / 2, -h / 2, -h / 2, -h / 2, -h / 2]
+    y_corners = [0, 0, 0, 0, -h , -h , -h , -h ]
 
     R = roty(rot_final)
     # print(R)
@@ -271,15 +276,28 @@ def plotingcubes(Box_pred,Box_True):
         ax.add_collection3d(Poly3DCollection(verts2, facecolors=cfg.color_true[str(c)], linewidths=0.5, edgecolors='black', alpha=.25))
 
     plt.show()
-def plotingcubes1(Box):
+
+
+
+
+def figure_to_array(fig):
+    fig.canvas.draw()
+    return np.array(fig.canvas.renderer._renderer)
+def plotingcubes1(Box,Box_own):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    x1= -23
-    x2 = 23
-    y1 = 0
-    y2 = 45
-    z1 = 5
-    z2 = 70
+    # x1 = -40
+    # x2 = 40
+    # y1 = -5
+    # y2 = 45
+    # z1 = 0
+    # z2 = 80
+    x1 = -15
+    x2 = 15
+    y1 = -5
+    y2 = 20
+    z1 = 0
+    z2 = 30
 
     plt.subplots_adjust(top = 0.985,
                         bottom = 0.015,
@@ -292,13 +310,24 @@ def plotingcubes1(Box):
     ax.set_xlabel('X')
     ax.set_zlabel('Y')
     ax.set_ylabel('Z')
-    ax.set_xticks(np.arange(x1, x2, int((x2-x1)/Sx)))
-    ax.set_zticks(np.arange(y1, y2, int((y2-y1)/(Sy+5))))
-    ax.set_yticks(np.arange(z1, z2, int((z2-z1)/Sz)))
-    ax.view_init(elev=26 , azim=-90)
+    ax.set_xticks(np.arange(x1, x2, ((x2 - x1) / (15 + 1))))
+    ax.set_zticks(np.arange(y1, y2, ((y2 - y1) / (5 + 5))))
+    ax.set_yticks(np.arange(z1, z2, ((z2 - z1) / (15 + 1))))
+    ax.view_init(elev=26 , azim=-65)
     # ax.view_init(elev=90, azim=-90)
 
-    for Z1 in Box:
+    for Z2 in Box_own:
+        verts_own = [[Box_own[0], Box_own[1], Box_own[2], Box_own[3]],
+                  [Box_own[4], Box_own[5], Box_own[6], Box_own[7]],
+                  [Box_own[0], Box_own[1], Box_own[5], Box_own[4]],
+                  [Box_own[2], Box_own[3], Box_own[7], Box_own[6]],
+                  [Box_own[1], Box_own[2], Box_own[6], Box_own[5]],
+                  [Box_own[4], Box_own[7], Box_own[3], Box_own[0]]]
+        ax.add_collection3d(Poly3DCollection(verts_own, facecolors='green', linewidths=0.5, edgecolors='black', alpha=0.05))
+
+    for Z in Box:
+        Z1 = Z[0]
+        c = Z[1]
         verts1 = [[Z1[0], Z1[1], Z1[2], Z1[3]],
                   [Z1[4], Z1[5], Z1[6], Z1[7]],
                   [Z1[0], Z1[1], Z1[5], Z1[4]],
@@ -306,12 +335,140 @@ def plotingcubes1(Box):
                   [Z1[1], Z1[2], Z1[6], Z1[5]],
                   [Z1[4], Z1[7], Z1[3], Z1[0]]]
         ax.add_collection3d(Poly3DCollection(verts1, facecolors='blue', linewidths=0.5, edgecolors='black', alpha=.25))
-    plt.show()
-    # plt.savefig('C:/Users/Marcelo/Desktop/SCRIPTS/MySCRIPT/Doc_code_R/Results/test_results_Path3_3D/' + name)
-    # plt.close()
-    # plt.clf()
-    # plt.show()
 
+    plt.savefig('temp.jpg')
+    f = cv2.imread('temp.jpg')
+    f = cv2.resize(f,(640, 480))
+    plt.close()
+    plt.clf()
+    return f
+def plotingcubes1_BEV(Box,Box_own):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    # x1 = -40
+    # x2 = 40
+    # y1 = -5
+    # y2 = 45
+    # z1 = 0
+    # z2 = 80
+    x1 = -15
+    x2 = 15
+    y1 = -5
+    y2 = 20
+    z1 = 0
+    z2 = 30
+
+    plt.subplots_adjust(top = 0.985,
+                        bottom = 0.015,
+                        left = 0.008,
+                        right = 0.992,
+                        hspace = 0.2,
+                        wspace = 0.2)
+
+    #
+    ax.set_xlabel('X')
+    ax.set_zlabel('Y')
+    ax.set_ylabel('Z')
+    ax.set_xticks(np.arange(x1, x2, ((x2 - x1) / (15 + 1))))
+    ax.set_zticks(np.arange(y1, y2, ((y2 - y1) / (5 + 5))))
+    ax.set_yticks(np.arange(z1, z2, ((z2 - z1) / (15 + 1))))
+    # ax.view_init(elev=26 , azim=-65)
+    ax.view_init(elev=90, azim=-90)
+
+    for Z2 in Box_own:
+        verts_own = [[Box_own[0], Box_own[1], Box_own[2], Box_own[3]],
+                  [Box_own[4], Box_own[5], Box_own[6], Box_own[7]],
+                  [Box_own[0], Box_own[1], Box_own[5], Box_own[4]],
+                  [Box_own[2], Box_own[3], Box_own[7], Box_own[6]],
+                  [Box_own[1], Box_own[2], Box_own[6], Box_own[5]],
+                  [Box_own[4], Box_own[7], Box_own[3], Box_own[0]]]
+        ax.add_collection3d(Poly3DCollection(verts_own, facecolors='green', linewidths=0.5, edgecolors='black', alpha=0.05))
+
+    for Z in Box:
+        Z1 = Z[0]
+        c = Z[1]
+        verts1 = [[Z1[0], Z1[1], Z1[2], Z1[3]],
+                  [Z1[4], Z1[5], Z1[6], Z1[7]],
+                  [Z1[0], Z1[1], Z1[5], Z1[4]],
+                  [Z1[2], Z1[3], Z1[7], Z1[6]],
+                  [Z1[1], Z1[2], Z1[6], Z1[5]],
+                  [Z1[4], Z1[7], Z1[3], Z1[0]]]
+        ax.add_collection3d(Poly3DCollection(verts1, facecolors='blue', linewidths=0.5, edgecolors='black', alpha=.25))
+    # plt.show()
+    # exit()
+    plt.savefig('temp2.jpg')
+    f = cv2.imread('temp2.jpg')
+    f = cv2.resize(f,(640, 480))
+    plt.close()
+    plt.clf()
+    return f
+
+def fix_dtc(dtc):
+
+    new = np.copy(dtc) # dtc x,z,y / new z,x,y
+    # new[:, 0] = dtc[:, 1]
+    # new[:, 1] = -dtc[:, 0]
+    # new[:, 2] = +0.5-dtc[:, 2]
+    new[:, 0] = dtc[:, 1]
+    new[:, 1] = -dtc[:, 0]
+    new[:, 2] = - dtc[:, 2]
+    return new
+
+def projection_2d(dtc, data):
+    calib_file = cfg.KITTI_PATH + 'calib/'+ data + '.txt'
+    image_file = cfg.KITTI_PATH + 'image_2/'+ data + '.png'
+    VeloInCam = lidar_on_cam(calib_file)
+    d = fix_dtc(dtc)
+    # print(d)
+    velo2cam,_ = VeloInCam.lidar_to_cam(d)
+
+    # points_in_2Dfov = velo2cam[fov_id, :]
+    return velo2cam
+
+def projection_2d_VIDEO(dtc, data):
+    calib_cam = 'C:/Users/Marcelo/Desktop/SCRIPTS/KITTI/Path2/calib/calib_cam_to_cam.txt'
+    calib_velo = 'C:/Users/Marcelo/Desktop/SCRIPTS/KITTI/Path2/calib/calib_velo_to_cam.txt'
+
+    image_file = 'C:/Users/Marcelo/Desktop/SCRIPTS/KITTI' + 'image_02/data/'+ data + '.png'
+    d = fix_dtc(dtc)
+    # print(d.shape)
+    ans, c_, xyz_v = velo3d_2_camera2d_points(d, v_fov=(-20, 1.0), h_fov=(-40, 40), \
+                                              vc_path=calib_velo, cc_path=calib_cam, mode='02')
+    # VeloInCam = lidar_on_cam(calib_file)
+    # print(ans)
+    # exit()
+    # print(d)
+    # velo2cam,_ = VeloInCam.lidar_to_cam(d)
+    ans = np.array(ans)
+    ans = ans.astype(int)
+    # points_in_2Dfov = velo2cam[fov_id, :]
+    return ans
+
+
+def draw_projected_box3d(image, qs, color=(255, 0, 255), thickness=2):
+    ''' Draw 3d bounding box in image
+        qs: (8,3) array of vertices for the 3d box in following order:
+            1 -------- 0
+           /|         /|
+          2 -------- 3 .
+          | |        | |
+          . 5 -------- 4
+          |/         |/
+          6 -------- 7
+    '''
+    qs = qs.astype(np.int32)
+    for k in range(0, 4):
+        # Ref: http://docs.enthought.com/mayavi/mayavi/auto/mlab_helper_functions.html
+        i, j = k, (k + 1) % 4
+        # use LINE_AA for opencv3
+        cv2.line(image, (qs[i, 0], qs[i, 1]), (qs[j, 0], qs[j, 1]), color, thickness)
+
+        i, j = k + 4, (k + 1) % 4 + 4
+        cv2.line(image, (qs[i, 0], qs[i, 1]), (qs[j, 0], qs[j, 1]), color, thickness)
+
+        i, j = k, k + 4
+        cv2.line(image, (qs[i, 0], qs[i, 1]), (qs[j, 0], qs[j, 1]), color, thickness)
+    return image
 if __name__ == '__main__':
 
     rot = np.pi/4
@@ -328,19 +485,22 @@ if __name__ == '__main__':
     # pred = [-8.283353298902512, 1.4421186447143555, 22.063607692718506, 1.6227973358971732, 1.634529948234558,
     #         3.794888973236084, -3.1416/2, 3]
 
-    true = [0.5, 0.5, 0.5, 2, 1, 4, 0, 3]
-    pred = [0.6, 0.6, 0.7, 2, 1, 4, 0, 3]
+    # true = [0.5, 0.5, 0.5, 2, 1, 4, 0, 3]
+    # pred = [0.6, 0.6, 0.7, 2, 1, 4, 0, 3]
+
+    pred = [6.229, 1.582, 20.621, 1.574, 1.417, 3.477, 1.053]
+    true = [6.19, 1.56, 20.48, 1.56, 1.42, 3.48, -2.08]
 
     # true = [0, 0, 0, 2/4, 1/4, 1, 0, 3]
     # pred = [3/4, 0, 2/4, 2/4, 1/4, 1, -3.1416 / 4, 3]
 
-    corners = get_3d_box(true)
-    corners2 = get_3d_box(pred)
+    # corners = get_3d_box(true)
+    # corners2 = get_3d_box(pred)
     iou2d = iou2d(true, pred)
     iou3d = iou3d(true, pred)
     print('IoU2D: ',iou2d)
     print('IoU3D: ', iou3d)
-    plotingcubes([corners2],[corners])
+    # plotingcubes([corners2],[corners])
 
 
 

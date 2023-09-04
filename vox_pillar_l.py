@@ -2,6 +2,7 @@ import numpy as np
 from collections import defaultdict
 import config_model as cfg
 # import open3d as o3d
+import matplotlib.pyplot as plt
 image_size = cfg.img_shape
 input_pillar_l_shape = cfg.input_pillar_l_shape
 input_pillar_l_indices_shape = cfg.input_pillar_l_indices_shape
@@ -112,6 +113,7 @@ def pillaring_l(cam_3d):
   # print(norm_i)
   # print('\n dic')
   # print(pos_idx)
+  pseudo_grid = np.zeros((image_size[0],image_size[1]))
   for key,v in dic_pillar.items():
 
     k=0 #group
@@ -133,6 +135,7 @@ def pillaring_l(cam_3d):
       vox_pillar_mean[j,0]+= norm_i[id,0:1] # Sum of X in the group
       vox_pillar_mean[j,1]+= norm_i[id,1:2] # Sum of Y in the group
       vox_pillar_mean[j,2]+= norm_i[id,2:3] # Sum of Z in the group
+      pseudo_grid[key[0],key[1]] = 1
       k+=1
       if k==vox_pillar.shape[1]:
         break
@@ -153,7 +156,11 @@ def pillaring_l(cam_3d):
     j+=1
     if j==max_pillars:
       break
-  
+
+
+  # plt.imshow(pseudo_grid)
+  # plt.show()
+  # exit()
   # print('\n', vox_pillar[18][:10],'\n')
   # print(vox_pillar_indices[11])
 

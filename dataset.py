@@ -12,7 +12,7 @@ from nuscenes.nuscenes import NuScenes
 
 from vox_pillar_l import pillaring_l
 from vox_pillar_r import pillaring_r
-nusc = NuScenes(version='v1.0-trainval', dataroot='D:/SCRIPTS/Nuscenes', verbose=True)
+nusc = NuScenes(version='v1.0-trainval', dataroot=cfg.NUSC_PATH, verbose=True)
 
 X_div = cfg.X_div
 # Y_div = cfg.Y_div
@@ -34,7 +34,8 @@ class SequenceData(Sequence):
 
         self.TRAIN_TXT = cfg.TRAIN_TXT
         self.VAL_TXT = cfg.VAL_TXT
-        self.LABEL_PATH = cfg.LABEL_PATH
+        # self.LABEL_PATH = cfg.LABEL_PATH
+        self.RADAR_PATH = cfg.RADAR_PATH
         self.LIDAR_PATH = cfg.LIDAR_PATH
         self.IMG_PATH = cfg.IMG_PATH
         self.image_shape = cfg.img_shape
@@ -97,8 +98,8 @@ class SequenceData(Sequence):
 
     def read(self, dataset):
         dataset = dataset.strip()
-
-        label_path = self.LABEL_PATH
+        # dataset = 'e9c6888ba9c542b8ad820b6e1cc2790a'
+        # Nusch_path = self.NUSC_PATH
         lidar_path = self.LIDAR_PATH
         radar_path = self.RADAR_PATH
         img_path = self.IMG_PATH
@@ -107,9 +108,9 @@ class SequenceData(Sequence):
 
         my_sample = nusc.get('sample', dataset)
         
-        RADAR = nusc.get('sample_data', my_sample['data']['RADAR_FRONT'])
+        # RADAR = nusc.get('sample_data', my_sample['data']['RADAR_FRONT'])
         LIDAR = nusc.get('sample_data', my_sample['data']['LIDAR_TOP'])
-        CAMERA = nusc.get('sample_data', my_sample['data']['CAM_FRONT'])
+        # CAMERA = nusc.get('sample_data', my_sample['data']['CAM_FRONT'])
 
         my_ego_token = LIDAR['ego_pose_token']
         
@@ -130,13 +131,18 @@ class SequenceData(Sequence):
         # lidar_name = lidar_name.replace('.pcd.bin','.npy')
         # 'samples/CAM_FRONT/n015-2018-07-18-11-07-57+0800__CAM_FRONT__1531883530912460.jpg'
 
+        # print(dataset)
+        # exit()
 
 
         # -------------------------- INPUT CAM ------------------------------------------
-        img = cv2.imread(Nusc_path + dataset+ '.jpg')
+        img = cv2.imread(img_path + dataset+ '.jpg')
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = img/255.
         img = cv2.resize(img,(self.image_shape))
+        # plt.imshow(img)
+        # plt.show()
+        
         # -------------------------- INPUT LIDAR ----------------------------------------
         #             z up  y front
         #             ^    ^
@@ -159,6 +165,11 @@ class SequenceData(Sequence):
         lidar = np.load(lidar_path + dataset + '.npy')  # [0,1,2] -> Z,X,Y
         vox_pillar_L, pos_L = pillaring_l(lidar)  # (10000,20,7)/ (10000,3)
 
+
+
+        
+
+
         # -------------------------- INPUT RADAR ----------------------------------------
         # Original RADAR   CONFIRM WITH PHOTO
             #                    X front
@@ -180,9 +191,16 @@ class SequenceData(Sequence):
         radar = np.load(radar_path + dataset + '.npy')  
         vox_pillar_R, pos_R = pillaring_r(radar)  # (10,5,5)/ (10,3)
 
+        # print('Point Shape: ', radar.shape)
+        # print('Vox Shape: ', vox_pillar_R.shape)
+        # print('Pos Shape: ', pos_R.shape)
+        
 
 
 
+        
+        # exit()
+# 
         # ------------------------- ANNOTATION Tensor ---------------------------------
 
         class_matrix = np.zeros([X_div, Z_div, self.nb_anchors, self.nb_classes])
@@ -223,9 +241,9 @@ class SequenceData(Sequence):
             label = nusc.get('sample_annotation', my_annotation_token)
             category = label['category_name']
 
-            pos_x = (label['translation'][0] - my_pos[0])   # original X --->  X  changed
-            pos_y = (label['translation'][2] - my_pos[2])   # original Y --->  Z  changed
-            pos_z = (label['translation'][1] - my_pos[1])   # original Z --->  Y  changed
+            pos_x = (my_pos[0] - label['translation'][0])   # original X --->  X  changed
+            pos_y = (my_pos[2] - label['translation'][2])   # original Y --->  Z  changed
+            pos_z = (my_pos[1] - label['translation'][1])   # original Z --->  Y  changed
 
             width = label['size'][0]
             lenght = label['size'][1]
@@ -240,12 +258,12 @@ class SequenceData(Sequence):
             # l = l.replace('\n', '')
             # l = l.split(' ')
             # l = np.array(l)
-            # maxIou = 0
+            maxIou = 0
 
             
             #######  Normalizing the Data ########
             if category in self.classes_names:
-                cla = int(self.classes[l[0]])
+                cla = int(self.classes[category])
 
                 norm_x = (pos_x + abs(self.x_min)) / (
                             self.x_max - self.x_min)  # Center Position X in relation to max X 0-1
@@ -261,7 +279,7 @@ class SequenceData(Sequence):
                 
                 out_of_size = np.array([norm_x, norm_y, norm_z,norm_vel_x, norm_vel_z])
 
-                if np.any(out_of_size > 1) or (np.isnan(velo_x[0]) or np.isnan(velo_z[1])):
+                if (np.any(out_of_size > 1)or np.any(out_of_size <0)) or (np.isnan(velo_x) or np.isnan(velo_z)):
                     continue
                 else:
                     loc = [X_div * norm_x, Z_div * norm_z]
@@ -341,13 +359,13 @@ class SequenceData(Sequence):
             else:
                 continue
 
-        # conf1 = np.dstack((conf_matrix[:,:,:2,0],np.zeros((X_div, Z_div, 1))))
+        conf1 = np.dstack((conf_matrix[:,:,:2,0],np.zeros((X_div, Z_div, 1))))
         # conf2 = np.dstack((conf_matrix[:,:,2:,0],np.zeros((X_div, Z_div, 1))))
         # img = np.hstack([conf1,conf2])
 
-        # plt.imshow(img)
-        # plt.show()
-        # exit()
+        plt.imshow(conf1)
+        plt.show()
+        exit()
         # print(conf_matrix.shape)
         # print(pos_matrix.shape)
         # print(dim_matrix.shape)
@@ -397,7 +415,7 @@ class SequenceData(Sequence):
 if __name__ == '__main__':
     # dataset_path = 'C:/Users/Marcelo/Desktop/SCRIPTS/MySCRIPT/Doc_code/data/'
     # dataset_path = 'D:/SCRIPTS/Doc_code/data/'
-    dataset_path = '/home/rtxadmin/Documents/Marcelo/Doc_code/data/'
+    dataset_path = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/'
     input_shape = (512, 512, 3)
     batch_size = 1
     train_gen = SequenceData('train', dir=dataset_path, target_size=input_shape, batch_size=batch_size, data_aug=False)
