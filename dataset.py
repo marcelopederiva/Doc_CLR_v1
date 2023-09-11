@@ -282,12 +282,32 @@ class SequenceData(Sequence):
                 if (np.any(out_of_size > 1)or np.any(out_of_size <0)) or (np.isnan(velo_x) or np.isnan(velo_z)):
                     continue
                 else:
+                	# Implementing the grid threshold
+
+                	# norm_x[norm_x==1]=0.9999
+                	# norm_x[norm_x==0]=0.0001
+
+                	# norm_z[norm_z==1]=0.9999
+                	# norm_z[norm_z==0]=0.0001
+
+                	# velo_x[velo_x==1]=0.9999
+                	# velo_x[velo_x==0]=0.0001
+
+                	# velo_z[velo_z==1]=0.9999
+                	# velo_z[velo_z==0]=0.0001
+
                     loc = [X_div * norm_x, Z_div * norm_z]
 
                     loc_i = int(loc[0])
                     loc_k = int(loc[1])
 
                     if conf_matrix[loc_i, loc_k, 0] == 0:
+
+                    	
+
+
+
+
 
                         lbl = [pos_x, pos_y, pos_z, width, height, lenght, rot]
                         
@@ -325,8 +345,8 @@ class SequenceData(Sequence):
                                             pos_matrix[loc_i+i, loc_k+j, a, :] = [x_cell, y_cell, z_cell]
                                             dim_matrix[loc_i+i, loc_k+j, a, :] = [w_cell, h_cell, l_cell]
                                             rot_matrix[loc_i+i, loc_k+j, a, 0] = rot_cell
-                                            velo_matrix[loc_i+i, loc_k+j, a, 0] = norm_vel_x   
-                                            velo_matrix[loc_i+i, loc_k+j, a, 1] = norm_vel_z   
+                                            velo_matrix[loc_i+i, loc_k+j, a, :] = [norm_vel_x, norm_vel_z]  
+                                            
 
                                         elif iou[a] < self.neg_iou:
                                             conf_matrix[loc_i+i, loc_k+j, a, 0] = 0
@@ -352,20 +372,20 @@ class SequenceData(Sequence):
                             pos_matrix[loc_i, loc_k, best_a, :] = [x_cell, y_cell, z_cell]
                             dim_matrix[loc_i, loc_k, best_a, :] = [w_cell, h_cell, l_cell]
                             rot_matrix[loc_i, loc_k, best_a, 0] = rot_cell
-                            velo_matrix[loc_i+i, loc_k+j, best_a, 0] = norm_vel_x   
-                            velo_matrix[loc_i+i, loc_k+j, best_a, 1] = norm_vel_z 
+                            velo_matrix[loc_i, loc_k, best_a, :] = [norm_vel_x, norm_vel_z ]  
+                              
 
                 # print(maxIou)
             else:
                 continue
 
-        conf1 = np.dstack((conf_matrix[:,:,:2,0],np.zeros((X_div, Z_div, 1))))
+        # conf1 = np.dstack((conf_matrix[:,:,:2,0],np.zeros((X_div, Z_div, 1))))
         # conf2 = np.dstack((conf_matrix[:,:,2:,0],np.zeros((X_div, Z_div, 1))))
         # img = np.hstack([conf1,conf2])
 
-        plt.imshow(conf1)
-        plt.show()
-        exit()
+        # plt.imshow(conf1)
+        # plt.show()
+        # exit()
         # print(conf_matrix.shape)
         # print(pos_matrix.shape)
         # print(dim_matrix.shape)

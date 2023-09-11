@@ -10,10 +10,10 @@ from tensorflow.keras.optimizers import Adam
 
 import tensorflow as tf
 import datetime
-from models.myModel_Fusion_4 import My_Model
+from models.myModel_3Fusion_1 import My_Model
 from dataset import SequenceData
 # from Pillar_loss_M import PointPillarNetworkLoss
-from Pillar_loss_M_old import PointPillarNetworkLoss, focal_loss, loc_loss, size_loss, angle_loss, class_loss
+from Loss import Loss, focal_loss, loc_loss, size_loss, angle_loss, velo_loss
 import numpy as np
 import config_model as cfg
 from accuracy import correct_grid, incorrect_grid
@@ -24,8 +24,12 @@ ITERS_TO_DECAY = cfg.ITERS_TO_DECAY
 LEARNING_RATE = cfg.LEARNING_RATE
 DECAY_RATE = cfg.DECAY_RATE
 
-input_pillar_shape = cfg.input_pillar_shape
-input_pillar_indices_shape = cfg.input_pillar_indices_shape
+input_pillar_l_shape = cfg.input_pillar_l_shape
+input_pillar_pos_l_shape = cfg.input_pillar_l_indices_shape
+
+input_pillar_r_shape = cfg.input_pillar_r_shape
+input_pillar_pos_r_shape = cfg.input_pillar_r_indices_shape
+
 input_img_shape = cfg.img_shape
 img_shape = cfg.img_shape
 
@@ -35,18 +39,24 @@ tf.get_logger().setLevel("ERROR")
 
 
 DATASET_PATH = cfg.DATASET_PATH
-LABEL_PATH = cfg.LABEL_PATH
+# LABEL_PATH = cfg.LABEL_PATH
 
 
 def train():
 	batch_size = BATCH_SIZE
 
-	input_pillar = Input(input_pillar_shape, batch_size = batch_size)
-	input_pillar_indices = Input(input_pillar_indices_shape, batch_size = batch_size)
+	input_pillar_l = Input(input_pillar_l_shape, batch_size=batch_size)
+	input_pillar_pos_l = Input(input_pillar_pos_l_shape, batch_size=batch_size)
+
+	input_pillar_r = Input(input_pillar_r_shape, batch_size=batch_size)
+	input_pillar_pos_r = Input(input_pillar_pos_r_shape, batch_size=batch_size)
+
 	input_img = Input((img_shape[0],img_shape[1],3),batch_size = batch_size)
 
-	output = My_Model(input_pillar, input_pillar_indices,input_img)
-	model = Model(inputs=[input_pillar, input_pillar_indices, input_img], outputs=output)
+	output = My_Model(input_pillar_l, input_pillar_pos_l, input_pillar_r, input_pillar_pos_r, input_img)
+	model = Model(inputs=[input_pillar_l, input_pillar_pos_l, input_pillar_r, input_pillar_pos_r, input_img], outputs=output)
+
+
 	# model.load_weights(os.path.join('checkpoints/val_loss/Temp_loss/', "model_010_Model_minimum.hdf5"))
 	# print('Model Loaded!\n')
 	#########################################
@@ -63,9 +73,9 @@ def train():
 	# 									    beta_1=0.95,
 	# 									    beta_2=0.99)
 
-	model.compile(optimizer = optimizer, loss=PointPillarNetworkLoss, metrics =[ correct_grid, incorrect_grid ,
-																				 focal_loss, loc_loss, size_loss,
-																				 angle_loss])
+	model.compile(optimizer = optimizer, loss=Loss, metrics =[ correct_grid, incorrect_grid ,
+															 focal_loss, loc_loss, size_loss,
+															 angle_loss, velo_loss])
 	# model.compile(optimizer = optimizer, loss=loss.losses())
 
 	#########################################
@@ -160,8 +170,8 @@ def train():
 		steps_per_epoch=len(train_gen),
 		callbacks=callbacks,
 		# initial_epoch=10,
-		use_multiprocessing = True,
-		workers = 2
+		# use_multiprocessing = True,
+		# workers = 2
 		)
 	# except KeyboardInterrupt:
 	# 	model.save('checkpoints/interrupt/Interrupt_'+ datetime.datetime.now().strftime("%Y%m%d-%H%M%S")+'.hdf5')

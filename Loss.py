@@ -220,13 +220,13 @@ def Loss(y_true,y_pred):
     angle_loss_ = angle_loss(y_true,y_pred)
     class_loss_ = class_loss(y_true,y_pred)
     velo_loss_ = velo_loss(y_true,y_pred)
-    # Testing
-    print('Focal loss: ', focal_loss_)
-    print('Loc loss: ', loc_loss_)
-    print('Size loss: ', size_loss_)
-    print('Angle loss: ', angle_loss_)
-    print('Velo loss: ', velo_loss_)
-    print('Class loss: ', class_loss_)
+    # # Testing
+    # print('Focal loss: ', focal_loss_)
+    # print('Loc loss: ', loc_loss_)
+    # print('Size loss: ', size_loss_)
+    # print('Angle loss: ', angle_loss_)
+    # print('Velo loss: ', velo_loss_)
+    # print('Class loss: ', class_loss_)
 
     # exit()
     total_loss = focal_loss_+ loc_loss_+ size_loss_+ angle_loss_+ velo_loss_ + class_loss_
