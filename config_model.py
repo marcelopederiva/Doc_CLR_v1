@@ -137,7 +137,7 @@ x_min = -40
 x_max = 40
 x_diff = abs(x_max - x_min)
 
-y_min = -2
+y_min = -6
 y_max = 6
 y_diff = abs(y_max - y_min)
 
