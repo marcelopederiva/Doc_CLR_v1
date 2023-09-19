@@ -112,7 +112,7 @@ class SequenceData(Sequence):
         LIDAR = nusc.get('sample_data', my_sample['data']['LIDAR_TOP'])
         # CAMERA = nusc.get('sample_data', my_sample['data']['CAM_FRONT'])
 
-        my_ego_token = LIDAR['ego_pose_token']
+        # my_ego_token = LIDAR['ego_pose_token']
         
 
 
@@ -232,33 +232,58 @@ class SequenceData(Sequence):
         # with open(label_path + dataset + '.txt', 'r') as f:
         #     label = f.readlines()
         
-        my_ego = nusc.get('ego_pose',my_ego_token)
+        # my_ego = nusc.get('ego_pose',my_ego_token)
 
-        my_pos = my_ego['translation']
+        # my_pos = my_ego['translation']
+        boxes = nusc.get_sample_data(LIDAR['token'])
+        an = 0
+        for b in boxes[1]:
+            my_annotation_token = my_sample['anns'][an]
+            an +=1
+            category = str(b.name)
+            pos_x = float(b.center[0])
+            pos_z = float(b.center[1])
+            pos_y = float(b.center[2])
 
-        for i in range(len(my_sample['anns'])):
-            my_annotation_token = my_sample['anns'][i]
-            label = nusc.get('sample_annotation', my_annotation_token)
-            category = label['category_name']
+            width = float(b.wlh[0])
+            lenght = float(b.wlh[1])
+            height = float(b.wlh[2])
 
-            pos_x = -(my_pos[1] - label['translation'][1])   # original X --->  X  changed
-            pos_y = -(my_pos[2] - label['translation'][2])   # original Y --->  Z  changed
-            pos_z = (my_pos[0] - label['translation'][0])   # original Z --->  Y  changed
-
-            width = label['size'][1]
-            lenght = label['size'][0]
-            height = label['size'][2]
-            
-            quaternion = label['rotation']
-            rot = 2*np.arccos(quaternion[0])
+            # axis_x = float(b.orientation.axis[0])
+            # axis_y = float(b.orientation.axis[1])
+            axis_z = float(b.orientation.axis[2])
+            if axis_z < 0:
+                rot = float(b.orientation.radians) * -1+ np.pi
+            else:
+                rot = float(b.orientation.radians)
 
             velo_x = nusc.box_velocity(my_annotation_token)[0]
             velo_z = nusc.box_velocity(my_annotation_token)[1]
 
-            # l = l.replace('\n', '')
-            # l = l.split(' ')
-            # l = np.array(l)
             maxIou = 0
+        # for i in range(len(my_sample['anns'])):
+        #     my_annotation_token = my_sample['anns'][i]
+        #     label = nusc.get('sample_annotation', my_annotation_token)
+        #     category = label['category_name']
+
+        #     pos_x = -(my_pos[1] - label['translation'][1])   # original X --->  X  changed
+        #     pos_y = -(my_pos[2] - label['translation'][2])   # original Y --->  Z  changed
+        #     pos_z = (my_pos[0] - label['translation'][0])   # original Z --->  Y  changed
+
+        #     width = label['size'][1]
+        #     lenght = label['size'][0]
+        #     height = label['size'][2]
+            
+        #     quaternion = label['rotation']
+        #     rot = 2*np.arccos(quaternion[0])
+
+        #     velo_x = nusc.box_velocity(my_annotation_token)[0]
+        #     velo_z = nusc.box_velocity(my_annotation_token)[1]
+
+        #     # l = l.replace('\n', '')
+        #     # l = l.split(' ')
+        #     # l = np.array(l)
+        #     maxIou = 0
 
             
             #######  Normalizing the Data ########

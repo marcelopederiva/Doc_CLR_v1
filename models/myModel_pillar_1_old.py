@@ -18,8 +18,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from tensorflow.keras.layers import add, Activation
 from tensorflow.keras.regularizers import l2
 
-max_group = cfg.max_group
-max_pillars = cfg.max_pillars
+max_group = cfg.max_group_l
+max_pillars = cfg.max_pillars_l
 nb_channels = cfg.nb_channels
 batch_size = cfg.BATCH_SIZE
 image_size = cfg.img_shape

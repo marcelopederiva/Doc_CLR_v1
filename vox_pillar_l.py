@@ -157,9 +157,9 @@ def pillaring_l(cam_3d):
     if j==max_pillars:
       break
 
-
-  # plt.imshow(pseudo_grid)
-  # plt.show()
+# 
+  plt.imshow(pseudo_grid)
+  plt.show()
   # exit()
   # print('\n', vox_pillar[18][:10],'\n')
   # print(vox_pillar_indices[11])

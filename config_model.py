@@ -88,8 +88,8 @@ DECAY_RATE = 1e-8
 ''' **************  PATHS  *****************  '''
 DATASET_PATH = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/'
 
-TRAIN_TXT = 'train_80_NS.txt'
-VAL_TXT = 'val_20_NS.txt'
+TRAIN_TXT = 'train_80.txt'
+VAL_TXT = 'val_20.txt'
 # TRAIN_TXT = 'train_80.txt'
 # VAL_TXT = 'val_20.txt'
 

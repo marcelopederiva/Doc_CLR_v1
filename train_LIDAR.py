@@ -11,9 +11,9 @@ from tensorflow.keras.optimizers import Adam
 import tensorflow as tf
 import datetime
 from models.myModel_pillar_1_old import My_Model
-from dataset import SequenceData
+from dataset_LIDAR import SequenceData
 # from Pillar_loss_M import PointPillarNetworkLoss
-from Loss import Loss, focal_loss, loc_loss, size_loss, angle_loss
+from Loss_LIDAR import Loss, focal_loss, loc_loss, size_loss, angle_loss
 import numpy as np
 import config_model as cfg
 from accuracy import correct_grid, incorrect_grid
@@ -75,7 +75,7 @@ def train():
 
 	model.compile(optimizer = optimizer, loss=Loss, metrics =[ correct_grid, incorrect_grid ,
 															 focal_loss, loc_loss, size_loss,
-															 angle_loss, velo_loss])
+															 angle_loss])
 	# model.compile(optimizer = optimizer, loss=loss.losses())
 
 	#########################################
@@ -85,8 +85,8 @@ def train():
 	#									    #
 	#########################################
 
-	save_dir_l = 'checkpoints/val_loss/'
-	weights_path_l = os.path.join(save_dir_l,(datetime.datetime.now().strftime("%Y%m%d-") +'Model_3Fusion_1.hdf5'))
+	save_dir_l = 'checkpoints/val_loss_LIDAR/'
+	weights_path_l = os.path.join(save_dir_l,(datetime.datetime.now().strftime("%Y%m%d-") +'Model_pillar_1.hdf5'))
 	checkpoint_loss = ModelCheckpoint(weights_path_l, monitor = 'val_loss',mode='min', save_best_only = True)
 
 	
@@ -99,7 +99,7 @@ def train():
 
 	# early_stopping = EarlyStopping(monitor = 'val_loss', min_delta = 0, patience = 15, verbose = 1, mode = 'auto')
 
-	log_dir = 'logs/'+ datetime.datetime.now().strftime("%Y%m%d-") + 'Model_3Fusion_1'
+	log_dir = 'logs_LIDAR/'+ datetime.datetime.now().strftime("%Y%m%d-") + 'Model_pillar_1'
 	tbCallBack = TensorBoard(log_dir=log_dir, histogram_freq=0, write_grads = True)
 
 
@@ -124,7 +124,7 @@ def train():
 	#                LOSS epoc              #
 	#									    #
 	#########################################checkpoint = keras.callbacks.ModelCheckpoint('model{epoch:08d}.h5', period=5) 
-	checkpoint_loss_e = ModelCheckpoint('checkpoints/val_loss/Temp_loss/model_{epoch:03d}_Model_3Fusion_1.hdf5',
+	checkpoint_loss_e = ModelCheckpoint('checkpoints/val_loss_LIDAR/Temp_loss/model_{epoch:03d}_Model_pillar.hdf5',
 										save_weights_only = True, 
 										save_freq = int(10*len(train_gen)))
 

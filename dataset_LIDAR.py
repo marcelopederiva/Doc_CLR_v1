@@ -98,10 +98,10 @@ class SequenceData(Sequence):
 
     def read(self, dataset):
         dataset = dataset.strip()
-        # dataset = 'e9c6888ba9c542b8ad820b6e1cc2790a'
+        dataset = '457d1fc544b54af1b935381fee84526c'
         # Nusch_path = self.NUSC_PATH
         lidar_path = self.LIDAR_PATH
-        radar_path = self.RADAR_PATH
+        # radar_path = self.RADAR_PATH
         img_path = self.IMG_PATH
         # dataset = dataset[:-4]
 
@@ -112,7 +112,7 @@ class SequenceData(Sequence):
         LIDAR = nusc.get('sample_data', my_sample['data']['LIDAR_TOP'])
         # CAMERA = nusc.get('sample_data', my_sample['data']['CAM_FRONT'])
 
-        my_ego_token = LIDAR['ego_pose_token']
+        # my_ego_token = LIDAR['ego_pose_token']
         
 
 
@@ -136,10 +136,10 @@ class SequenceData(Sequence):
 
 
         # -------------------------- INPUT CAM ------------------------------------------
-        img = cv2.imread(img_path + dataset+ '.jpg')
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = img/255.
-        img = cv2.resize(img,(self.image_shape))
+        # img = cv2.imread(img_path + dataset+ '.jpg')
+        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # img = img/255.
+        # img = cv2.resize(img,(self.image_shape))
         # plt.imshow(img)
         # plt.show()
         
@@ -188,8 +188,8 @@ class SequenceData(Sequence):
             #               | /
             #               |/
             # left X ------ 0 ------>  right
-        radar = np.load(radar_path + dataset + '.npy')  
-        vox_pillar_R, pos_R = pillaring_r(radar)  # (10,5,5)/ (10,3)
+        # radar = np.load(radar_path + dataset + '.npy')  
+        # vox_pillar_R, pos_R = pillaring_r(radar)  # (10,5,5)/ (10,3)
 
         # print('Point Shape: ', radar.shape)
         # print('Vox Shape: ', vox_pillar_R.shape)
@@ -208,7 +208,7 @@ class SequenceData(Sequence):
         pos_matrix = np.zeros([X_div, Z_div, self.nb_anchors, 3])
         dim_matrix = np.zeros([X_div, Z_div, self.nb_anchors, 3])
         rot_matrix = np.zeros([X_div, Z_div, self.nb_anchors, 1])
-        velo_matrix = np.zeros([X_div, Z_div, self.nb_anchors, 2])
+        # velo_matrix = np.zeros([X_div, Z_div, self.nb_anchors, 2])
 
         #             z up  y front
         #             ^    ^
@@ -232,34 +232,35 @@ class SequenceData(Sequence):
         # with open(label_path + dataset + '.txt', 'r') as f:
         #     label = f.readlines()
         
-        my_ego = nusc.get('ego_pose',my_ego_token)
+        # my_ego = nusc.get('ego_pose',my_ego_token)
 
-        my_pos = my_ego['translation']
+        # my_pos = my_ego['translation']
+        boxes = nusc.get_sample_data(LIDAR['token'])
+        an = 0
+        for b in boxes[1]:
+            my_annotation_token = my_sample['anns'][an]
+            an+=1
+            category = str(b.name)
+            pos_x = float(b.center[0])
+            pos_z = float(b.center[1])
+            pos_y = float(b.center[2])
 
-        for i in range(len(my_sample['anns'])):
-            my_annotation_token = my_sample['anns'][i]
-            label = nusc.get('sample_annotation', my_annotation_token)
-            category = label['category_name']
+            width = float(b.wlh[0])
+            lenght = float(b.wlh[1])
+            height = float(b.wlh[2])
 
-            pos_x = -(my_pos[1] - label['translation'][1])   # original X --->  X  changed
-            pos_y = -(my_pos[2] - label['translation'][2])   # original Y --->  Z  changed
-            pos_z = (my_pos[0] - label['translation'][0])   # original Z --->  Y  changed
-
-            width = label['size'][1]
-            lenght = label['size'][0]
-            height = label['size'][2]
-            
-            quaternion = label['rotation']
-            rot = 2*np.arccos(quaternion[0])
+            # axis_x = float(b.orientation.axis[0])
+            # axis_y = float(b.orientation.axis[1])
+            axis_z = float(b.orientation.axis[2])
+            if axis_z < 0:
+                rot = float(b.orientation.radians) * -1+ np.pi
+            else:
+                rot = float(b.orientation.radians)
 
             velo_x = nusc.box_velocity(my_annotation_token)[0]
             velo_z = nusc.box_velocity(my_annotation_token)[1]
 
-            # l = l.replace('\n', '')
-            # l = l.split(' ')
-            # l = np.array(l)
-            maxIou = 0
-
+            maxIou = 0    
             
             #######  Normalizing the Data ########
             if category in self.classes_names:
@@ -272,14 +273,14 @@ class SequenceData(Sequence):
                 norm_z = (pos_z + abs(self.z_min)) / (
                             self.z_max - self.z_min)  # Center Position Z in relation to max Z 0-1
 
-                norm_vel_x = (velo_x + abs(self.vel_min)) / (
-                            self.vel_max - self.vel_min)  # Norm velocity 0-1
-                norm_vel_z = (velo_z + abs(self.vel_min)) / (
-                            self.vel_max - self.vel_min)  # Norm velocity 0-1
+                # norm_vel_x = (velo_x + abs(self.vel_min)) / (
+                #             self.vel_max - self.vel_min)  # Norm velocity 0-1
+                # norm_vel_z = (velo_z + abs(self.vel_min)) / (
+                #             self.vel_max - self.vel_min)  # Norm velocity 0-1
                 
-                out_of_size = np.array([norm_x, norm_z,norm_vel_x, norm_vel_z])
+                out_of_size = np.array([norm_x, norm_z])
 
-                if (np.any(out_of_size > 1)or np.any(out_of_size <0)) or (np.isnan(velo_x) or np.isnan(velo_z)):
+                if (np.any(out_of_size > 1)or np.any(out_of_size <0)):
                     continue
                 else:
                 	# Implementing the grid threshold
@@ -345,7 +346,7 @@ class SequenceData(Sequence):
                                             pos_matrix[loc_i+i, loc_k+j, a, :] = [x_cell, y_cell, z_cell]
                                             dim_matrix[loc_i+i, loc_k+j, a, :] = [w_cell, h_cell, l_cell]
                                             rot_matrix[loc_i+i, loc_k+j, a, 0] = rot_cell
-                                            velo_matrix[loc_i+i, loc_k+j, a, :] = [norm_vel_x, norm_vel_z]  
+                                            # velo_matrix[loc_i+i, loc_k+j, a, :] = [norm_vel_x, norm_vel_z]  
                                             
 
                                         elif iou[a] < self.neg_iou:
@@ -372,30 +373,30 @@ class SequenceData(Sequence):
                             pos_matrix[loc_i, loc_k, best_a, :] = [x_cell, y_cell, z_cell]
                             dim_matrix[loc_i, loc_k, best_a, :] = [w_cell, h_cell, l_cell]
                             rot_matrix[loc_i, loc_k, best_a, 0] = rot_cell
-                            velo_matrix[loc_i, loc_k, best_a, :] = [norm_vel_x, norm_vel_z ]  
+                            # velo_matrix[loc_i, loc_k, best_a, :] = [norm_vel_x, norm_vel_z ]  
                               
 
                 # print(maxIou)
             else:
                 continue
 
-        # conf1 = np.dstack((conf_matrix[:,:,:2,0],np.zeros((X_div, Z_div, 1))))
+        conf1 = np.dstack((conf_matrix[:,:,:2,0],np.zeros((X_div, Z_div, 1))))
         # conf2 = np.dstack((conf_matrix[:,:,2:,0],np.zeros((X_div, Z_div, 1))))
         # img = np.hstack([conf1,conf2])
 
-        # plt.imshow(conf1)
-        # plt.show()
-        # exit()
+        plt.imshow(conf1)
+        plt.show()
+        exit()
         # print(conf_matrix.shape)
         # print(pos_matrix.shape)
         # print(dim_matrix.shape)
         # print(rot_matrix.shape)
         # print(class_matrix.shape)
-        output = np.concatenate((conf_matrix, pos_matrix, dim_matrix, rot_matrix, velo_matrix, class_matrix), axis=-1)
+        output = np.concatenate((conf_matrix, pos_matrix, dim_matrix, rot_matrix, class_matrix), axis=-1)
 
         # print(output.shape)
         # exit()
-        return vox_pillar_L, pos_L, vox_pillar_R, pos_R, img, output
+        return vox_pillar_L, pos_L, output
 
     def data_generation(self, batch_datasets):
         pillar_L = []
@@ -406,26 +407,26 @@ class SequenceData(Sequence):
         lbl = []
         
         for dataset in batch_datasets:
-            vox_pillar_L, pos_L, vox_pillar_R, pos_R, img, output  = self.read(dataset)
+            vox_pillar_L, pos_L,output  = self.read(dataset)
 
             pillar_L.append(vox_pillar_L)
             pillar_pos_L.append(pos_L)
 
-            pillar_R.append(vox_pillar_R)
-            pillar_pos_R.append(pos_R)
+            # pillar_R.append(vox_pillar_R)
+            # pillar_pos_R.append(pos_R)
 
-            imgs.append(img)
+            # imgs.append(img)
 
             lbl.append(output)
             
 
         X_pL = np.array(pillar_L)
         X_posL = np.array(pillar_pos_L)
-        X_pR = np.array(pillar_R)
-        X_posR = np.array(pillar_pos_R)
-        X_imgs = np.array(imgs)
+        # X_pR = np.array(pillar_R)
+        # X_posR = np.array(pillar_pos_R)
+        # X_imgs = np.array(imgs)
 
-        X = [X_pL, X_posL, X_pR, X_posR, X_imgs]
+        X = [X_pL, X_posL]
         
         lbl = np.array(lbl)
 
