@@ -8,11 +8,11 @@ import config_model as cfg
 from utils3 import iou3d, iou2d
 import matplotlib.pyplot as plt
 import cv2
-from nuscenes.nuscenes import NuScenes
+# from nuscenes.nuscenes import NuScenes
 
-from vox_pillar_l import pillaring_l
-from vox_pillar_r import pillaring_r
-nusc = NuScenes(version='v1.0-trainval', dataroot=cfg.NUSC_PATH, verbose=True)
+import vox_pillar_l_cy
+import vox_pillar_r_cy 
+# nusc = NuScenes(version='v1.0-trainval', dataroot=cfg.NUSC_PATH, verbose=True)
 
 X_div = cfg.X_div
 # Y_div = cfg.Y_div
@@ -35,6 +35,7 @@ class SequenceData(Sequence):
         self.TRAIN_TXT = cfg.TRAIN_TXT
         self.VAL_TXT = cfg.VAL_TXT
         # self.LABEL_PATH = cfg.LABEL_PATH
+        self.NUSC_PATH = cfg.NUSC_PATH
         self.RADAR_PATH = cfg.RADAR_PATH
         self.LIDAR_PATH = cfg.LIDAR_PATH
         self.IMG_PATH = cfg.IMG_PATH
@@ -99,17 +100,17 @@ class SequenceData(Sequence):
     def read(self, dataset):
         dataset = dataset.strip()
         # dataset = 'e9c6888ba9c542b8ad820b6e1cc2790a'
-        # Nusch_path = self.NUSC_PATH
+        Nusc_path = self.NUSC_PATH
         lidar_path = self.LIDAR_PATH
         radar_path = self.RADAR_PATH
         img_path = self.IMG_PATH
         # dataset = dataset[:-4]
 
 
-        my_sample = nusc.get('sample', dataset)
+        # my_sample = nusc.get('sample', dataset)
         
         # RADAR = nusc.get('sample_data', my_sample['data']['RADAR_FRONT'])
-        LIDAR = nusc.get('sample_data', my_sample['data']['LIDAR_TOP'])
+        # LIDAR = nusc.get('sample_data', my_sample['data']['LIDAR_TOP'])
         # CAMERA = nusc.get('sample_data', my_sample['data']['CAM_FRONT'])
 
         # my_ego_token = LIDAR['ego_pose_token']
@@ -163,7 +164,7 @@ class SequenceData(Sequence):
         # left x ------ 0 ------>  right
 
         lidar = np.load(lidar_path + dataset + '.npy')  # [0,1,2] -> Z,X,Y
-        vox_pillar_L, pos_L = pillaring_l(lidar)  # (10000,20,7)/ (10000,3)
+        vox_pillar_L, pos_L = vox_pillar_l_cy.pillaring_l(lidar)  # (10000,20,7)/ (10000,3)
 
 
 
@@ -189,7 +190,7 @@ class SequenceData(Sequence):
             #               |/
             # left X ------ 0 ------>  right
         radar = np.load(radar_path + dataset + '.npy')  
-        vox_pillar_R, pos_R = pillaring_r(radar)  # (10,5,5)/ (10,3)
+        vox_pillar_R, pos_R = vox_pillar_r_cy.pillaring_r(radar)  # (10,5,5)/ (10,3)
 
         # print('Point Shape: ', radar.shape)
         # print('Vox Shape: ', vox_pillar_R.shape)
@@ -235,57 +236,51 @@ class SequenceData(Sequence):
         # my_ego = nusc.get('ego_pose',my_ego_token)
 
         # my_pos = my_ego['translation']
-        boxes = nusc.get_sample_data(LIDAR['token'])
-        an = 0
-        for b in boxes[1]:
-            my_annotation_token = my_sample['anns'][an]
-            an +=1
-            category = str(b.name)
-            pos_x = float(b.center[0])
-            pos_z = float(b.center[1])
-            pos_y = float(b.center[2])
+        # boxes = nusc.get_sample_data(LIDAR['token'])
+        # an = 0
+        # for b in boxes[1]:
+        #     my_annotation_token = my_sample['anns'][an]
+        #     an +=1
+        #     category = str(b.name)
+        #     pos_x = float(b.center[0])
+        #     pos_z = float(b.center[1])
+        #     pos_y = float(b.center[2])
 
-            width = float(b.wlh[0])
-            lenght = float(b.wlh[1])
-            height = float(b.wlh[2])
+        #     width = float(b.wlh[0])
+        #     lenght = float(b.wlh[1])
+        #     height = float(b.wlh[2])
 
-            # axis_x = float(b.orientation.axis[0])
-            # axis_y = float(b.orientation.axis[1])
-            axis_z = float(b.orientation.axis[2])
-            if axis_z < 0:
-                rot = float(b.orientation.radians) * -1+ np.pi
-            else:
-                rot = float(b.orientation.radians)
-
-            velo_x = nusc.box_velocity(my_annotation_token)[0]
-            velo_z = nusc.box_velocity(my_annotation_token)[1]
-
-            maxIou = 0
-        # for i in range(len(my_sample['anns'])):
-        #     my_annotation_token = my_sample['anns'][i]
-        #     label = nusc.get('sample_annotation', my_annotation_token)
-        #     category = label['category_name']
-
-        #     pos_x = -(my_pos[1] - label['translation'][1])   # original X --->  X  changed
-        #     pos_y = -(my_pos[2] - label['translation'][2])   # original Y --->  Z  changed
-        #     pos_z = (my_pos[0] - label['translation'][0])   # original Z --->  Y  changed
-
-        #     width = label['size'][1]
-        #     lenght = label['size'][0]
-        #     height = label['size'][2]
-            
-        #     quaternion = label['rotation']
-        #     rot = 2*np.arccos(quaternion[0])
+        #     # axis_x = float(b.orientation.axis[0])
+        #     # axis_y = float(b.orientation.axis[1])
+        #     axis_z = float(b.orientation.axis[2])
+        #     if axis_z < 0:
+        #         rot = float(b.orientation.radians) * -1+ np.pi
+        #     else:
+        #         rot = float(b.orientation.radians)
 
         #     velo_x = nusc.box_velocity(my_annotation_token)[0]
         #     velo_z = nusc.box_velocity(my_annotation_token)[1]
+        with open(Nusc_path + 'data_an/' + dataset + '.txt', 'r') as doc:
+            label = doc.readlines()
 
-        #     # l = l.replace('\n', '')
-        #     # l = l.split(' ')
-        #     # l = np.array(l)
-        #     maxIou = 0
+        for l in label:
+            l = l.replace('\n','')
+            l = l.split(' ')
+            l = np.array(l)
+            category = str(l[0]) # class --> int
+            pos_x = float(l[1]) # Center Position X 
+            pos_y = float(l[2]) # Center Position Y 
+            pos_z = float(l[3]) # Center Position Z 
 
-            
+            width = float(l[4]) # Dimension W 
+            height = float(l[5]) # Dimension H
+            lenght = float(l[6]) # Dimension L
+            rot = float(l[7]) # Rotation in Y
+
+            velo_x = float(l[8]) # Velocity in X
+            velo_z = float(l[9]) # Velocity in Z
+            maxIou = 0
+        
             #######  Normalizing the Data ########
             if category in self.classes_names:
                 cla = int(self.classes[category])
@@ -328,17 +323,11 @@ class SequenceData(Sequence):
 
                     if conf_matrix[loc_i, loc_k, 0] == 0:
 
-                    	
-
-
-
-
-
                         lbl = [pos_x, pos_y, pos_z, width, height, lenght, rot]
                         
                         diag = [np.sqrt(pow(a[0],2)+pow(a[2],2)) for a in self.anchor]
-                        for i in range(-3,4):
-                            for j in range(-3,4):
+                        for i in range(-1,2):
+                            for j in range(-1,2):
                                 if (0 < loc_i + i < X_div) and (0 < loc_k + j < Z_div):
                                     # x_v = (loc_i+i)*(0.16)* 2 + self.x_min # Real --- xId * xStep * downscalingFactor + xMin;
                                     # z_v = (loc_k+j)*(0.16)* 2 + self.z_min # Real --- zId * zStep * downscalingFactor + zMin;

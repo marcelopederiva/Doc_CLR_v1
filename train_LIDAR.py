@@ -57,8 +57,8 @@ def train():
 	model = Model(inputs=[input_pillar_l, input_pillar_pos_l], outputs=output)
 
 
-	# model.load_weights(os.path.join('checkpoints/val_loss/Temp_loss/', "model_010_Model_minimum.hdf5"))
-	# print('Model Loaded!\n')
+	model.load_weights(os.path.join('checkpoints/val_loss_LIDAR/Temp_loss/', "model_050_Model_pillar.hdf5"))
+	print('Model Loaded!\n')
 	#########################################
 	#										#
 	#               COMPILE                 #
@@ -99,7 +99,7 @@ def train():
 
 	# early_stopping = EarlyStopping(monitor = 'val_loss', min_delta = 0, patience = 15, verbose = 1, mode = 'auto')
 
-	log_dir = 'logs_LIDAR/'+ datetime.datetime.now().strftime("%Y%m%d-") + 'Model_pillar_1'
+	log_dir = 'logs_LIDAR/'+ datetime.datetime.now().strftime("%Y%m%d-") + 'Model_pillar_1_C'
 	tbCallBack = TensorBoard(log_dir=log_dir, histogram_freq=0, write_grads = True)
 
 
@@ -169,9 +169,9 @@ def train():
 		validation_data=valid_gen,
 		steps_per_epoch=len(train_gen),
 		callbacks=callbacks,
-		# initial_epoch=10,
-		# use_multiprocessing = True,
-		# workers = 2
+		initial_epoch=50,
+		use_multiprocessing = True,
+		workers = 2
 		)
 	# except KeyboardInterrupt:
 	# 	model.save('checkpoints/interrupt/Interrupt_'+ datetime.datetime.now().strftime("%Y%m%d-%H%M%S")+'.hdf5')
@@ -180,6 +180,10 @@ def train():
 	# try:
 	# 	model.fit(
 	# 		train_gen,
+
+
+
+
 	# 		epochs = EPOCHS,
 	# 		validation_data=valid_gen,
 	# 		steps_per_epoch=len(train_gen),

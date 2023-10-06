@@ -171,7 +171,7 @@ def train():
 		callbacks=callbacks,
 		# initial_epoch=10,
 		# use_multiprocessing = True,
-		# workers = 2
+		workers = 4
 		)
 	# except KeyboardInterrupt:
 	# 	model.save('checkpoints/interrupt/Interrupt_'+ datetime.datetime.now().strftime("%Y%m%d-%H%M%S")+'.hdf5')

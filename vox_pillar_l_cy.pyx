@@ -1,8 +1,9 @@
 import numpy as np
+cimport numpy as np
 from collections import defaultdict
 import config_model as cfg
 # import open3d as o3d
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 image_size = cfg.img_shape
 input_pillar_l_shape = cfg.input_pillar_l_shape
 input_pillar_l_indices_shape = cfg.input_pillar_l_indices_shape

@@ -4,10 +4,10 @@ import config_model as cfg
 # import open3d as o3d
 import matplotlib.pyplot as plt
 image_size = cfg.img_shape
-input_pillar_l_shape = cfg.input_pillar_l_shape
-input_pillar_l_indices_shape = cfg.input_pillar_l_indices_shape
-max_group = cfg.max_group_l
-max_pillars = cfg.max_pillars_l
+input_pillar_r_shape = cfg.input_pillar_r_shape
+input_pillar_r_indices_shape = cfg.input_pillar_r_indices_shape
+max_group = cfg.max_group_r
+max_pillars = cfg.max_pillars_r
 
 
 x_min = cfg.x_min
@@ -29,7 +29,7 @@ from collections import defaultdict
 # np.set_printoptions(precision=3, suppress= True)
 
 
-def pillaring_l(cam_3d):
+def pillaring_r(cam_3d):
     # Normalizing the data
   # x = -40/40 ----> 80
   # y = -2/6 ----> 8
@@ -53,16 +53,16 @@ def pillaring_l(cam_3d):
   # exit()
 
   # cam_3d[:, 1] = - cam_3d[:, 1]
-
+  # cam_3d[:, 2] = - cam_3d[:, 2]
 
   norm_i =  np.zeros((cam_3d.shape))
   real_3d =  np.zeros((cam_3d.shape))
   norm =  np.zeros((cam_3d.shape[0],2))
   # print(norm.shape)
   for i in range(cam_3d.shape[0]):  
-    real_3d[i,0] = cam_3d[i,1]
-    real_3d[i,1] = cam_3d[i,2]
-    real_3d[i,2] = cam_3d[i,0]
+    real_3d[i,0] = cam_3d[i,0]
+    real_3d[i,1] = cam_3d[i,1]
+    real_3d[i,2] = cam_3d[i,2]
 
 
 
@@ -70,6 +70,7 @@ def pillaring_l(cam_3d):
     norm_i[i,1] = (cam_3d[i,1]-y_min)/(y_diff)
     norm_i[i,2] = norm[i,1] = (cam_3d[i,2]-z_min)/(z_diff)
     norm_i[i,3] = cam_3d[i,3]
+    norm_i[i,4] = cam_3d[i,4]
     # norm[i,0] = (cam_3d[i,1]-x_min)/(x_diff)
     # norm[i,1] = (cam_3d[i,0]-z_min)/(z_diff)
   # print(norm)
@@ -103,9 +104,9 @@ def pillaring_l(cam_3d):
   # print(dic_pillar)
   # exit()
   # Creating the pillar in each grid cell/ Creating the mean count of each grid cell
-  vox_pillar = np.zeros(input_pillar_l_shape)
-  vox_pillar_mean = np.zeros(input_pillar_l_indices_shape)
-  vox_pillar_indices = np.zeros(input_pillar_l_indices_shape)
+  vox_pillar = np.zeros(input_pillar_r_shape)
+  vox_pillar_mean = np.zeros(input_pillar_r_indices_shape)
+  vox_pillar_indices = np.zeros(input_pillar_r_indices_shape)
   j=0
   # print('norm')
   # print(norm)
@@ -127,14 +128,15 @@ def pillaring_l(cam_3d):
       # vox_pillar_mean[j,1]+= real_3d[id,1:2] # Sum of Y in the group
       # vox_pillar_mean[j,2]+= real_3d[id,2:3] # Sum of Z in the group
 
-      vox_pillar[j,k,:4] = norm_i[id] # copy the X Y Z r from the LIDAR
-      vox_pillar[j,k,7:8] = abs((norm[id,0] - key[0])) # Distance of the X point to the middle Pillar
-      vox_pillar[j,k,8:9] = abs((norm[id,1] - key[1])) # Distance of the Z point to the middle Pillar
+      vox_pillar[j,k,:2] = norm_i[id,3:5] # copy the VX VZ from the RADAR
+
+      # vox_pillar[j,k,7:8] = abs((norm[id,0] - key[0]) - 0.5) # Distance of the X point to the middle Pillar
+      # vox_pillar[j,k,8:9] = abs((norm[id,1] - key[1]) - 0.5) # Distance of the Z point to the middle Pillar
     
 
-      vox_pillar_mean[j,0]+= norm_i[id,0:1] # Sum of X in the group
-      vox_pillar_mean[j,1]+= norm_i[id,1:2] # Sum of Y in the group
-      vox_pillar_mean[j,2]+= norm_i[id,2:3] # Sum of Z in the group
+      vox_pillar_mean[j,0]+= norm_i[id,3:4] # Sum of VX in the group
+      vox_pillar_mean[j,1]+= norm_i[id,4:5] # Sum of VZ in the group
+      # vox_pillar_mean[j,2]+= norm_i[id,2:3] # Sum of Z in the group
       pseudo_grid[key[0],key[1]] = 1
       k+=1
       if k==vox_pillar.shape[1]:
@@ -142,9 +144,9 @@ def pillaring_l(cam_3d):
     
     vox_pillar_mean[j,:] = vox_pillar_mean[j,:]/(k) # Mean of XYZ of the group
 
-    vox_pillar[j,:k,4:5] = abs(vox_pillar[j,:k,0:1] - vox_pillar_mean[j,0:1]) # Distance of X to the X mean Group
-    vox_pillar[j,:k,5:6] = abs(vox_pillar[j,:k,1:2] - vox_pillar_mean[j,1:2]) # Distance of Y to the Y mean Group
-    vox_pillar[j,:k,6:7] = abs(vox_pillar[j,:k,2:3] - vox_pillar_mean[j,2:3]) # Distance of Z to the Z mean Group
+    vox_pillar[j,:k,2:3] = abs(vox_pillar[j,:k,0:1] - vox_pillar_mean[j,0:1]) # Distance of VX to the VX mean Group
+    vox_pillar[j,:k,3:4] = abs(vox_pillar[j,:k,1:2] - vox_pillar_mean[j,1:2]) # Distance of VZ to the VZ mean Group
+    # vox_pillar[j,:k,6:7] = abs(vox_pillar[j,:k,2:3] - vox_pillar_mean[j,2:3]) # Distance of Z to the Z mean Group
 
 
     # vox_pillar[j,:k,4:7] = vox_pillar[j,:k,:3] - vox_pillar_mean[j,:]
@@ -156,21 +158,19 @@ def pillaring_l(cam_3d):
     j+=1
     if j==max_pillars:
       break
-
-# 
-  # plt.imshow(pseudo_grid)
-  # plt.show()
-  # exit()
+  
   # print('\n', vox_pillar[18][:10],'\n')
   # print(vox_pillar_indices[11])
 
+  # plt.imshow(pseudo_grid)
+  # plt.show()
   # exit()
-  # Output of the pilar grouping (10000,20,9) --- 10000 grids, with max 20 detection in each,
-  #                                               9 - (X,Y,Z,r,Xo,Yo,Zo,Xp,Zp):
-  #                                               X,Y,Z = Lidar norm position
-  #                                               r = Lidar reflectance
-  #                                               Xo,Yo,Zo = offset of Lidar norm and the mean
+  
+  # exit()
+  # Output of the pilar grouping (100,10,4) --- 100 grids, with max 10 detection in each,
+  #                                               4 - (Vx,Vz,Vx_o,Vz_o):
+  #                                               Vx,Vz = RADAR vel measurment 
+  #                                               Vx_o,Vz_o = offset of RADAR velocities and the mean
   #                                                         of all group detections
-  #                                               Xp,Zp = diff from the center of Pillar
   return vox_pillar,vox_pillar_indices
 
