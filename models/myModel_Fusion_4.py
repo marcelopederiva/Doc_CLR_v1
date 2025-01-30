@@ -22,7 +22,7 @@ max_group = cfg.max_group
 max_pillars = cfg.max_pillars
 nb_channels = cfg.nb_channels
 batch_size = cfg.BATCH_SIZE
-image_size = cfg.img_shape
+image_size = cfg.image_shape
 nb_anchors = cfg.nb_anchors
 nb_classes = cfg.nb_classes
 
@@ -336,7 +336,7 @@ def My_Model(input_pillar, input_pillar_mean, input_img):
 
     # Head detection
     out = Head(Add_up)
-    
+    out = tf.cast(out, tf.float32)
     return out
 
 

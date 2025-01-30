@@ -3,7 +3,7 @@ from collections import defaultdict
 import config_model as cfg
 # import open3d as o3d
 import matplotlib.pyplot as plt
-image_size = cfg.img_shape
+image_size = cfg.image_shape
 input_pillar_r_shape = cfg.input_pillar_r_shape
 input_pillar_r_indices_shape = cfg.input_pillar_r_indices_shape
 max_group = cfg.max_group_r
@@ -26,10 +26,20 @@ import numpy as np
 from collections import defaultdict
 
 
-# np.set_printoptions(precision=3, suppress= True)
+np.set_printoptions(precision=3, suppress= True)
 
 
 def pillaring_r(cam_3d):
+
+  '''
+  RADAR S COMPL
+                                pos_x, pos_y, pos_z, 
+                                vel_x, vel_z,
+                                vel_x_cmp,vel_z_cmp,
+                                quality,
+                                pos_x_rms, pos_z_rms,
+                                vel_x_rms, vel_z_rms
+  '''
     # Normalizing the data
   # x = -40/40 ----> 80
   # y = -2/6 ----> 8
@@ -54,7 +64,36 @@ def pillaring_r(cam_3d):
 
   # cam_3d[:, 1] = - cam_3d[:, 1]
   # cam_3d[:, 2] = - cam_3d[:, 2]
-
+  
+  new_cam3d = []
+  # new_cam3d[:,:] = cam_3d[:,:]
+  # i_count=cam_3d.shape[0]
+  ad = 0.15
+  # print(cam_3d)
+  np.savetxt('cam_3d.txt', cam_3d, fmt='%.10f')
+  for id_count in range(cam_3d.shape[0]):
+    new_cam3d.append(
+      [cam_3d[id_count, 0], cam_3d[id_count, 1], cam_3d[id_count, 2], cam_3d[id_count, 3], cam_3d[id_count, 4]])
+    new_cam3d.append([cam_3d[id_count, 0] + ad, cam_3d[id_count, 1], cam_3d[id_count, 2] + ad, cam_3d[id_count, 3],
+                      cam_3d[id_count, 4]])
+    new_cam3d.append([cam_3d[id_count, 0] - ad, cam_3d[id_count, 1], cam_3d[id_count, 2] - ad, cam_3d[id_count, 3],
+                      cam_3d[id_count, 4]])
+    new_cam3d.append([cam_3d[id_count, 0] + ad, cam_3d[id_count, 1], cam_3d[id_count, 2] - ad, cam_3d[id_count, 3],
+                      cam_3d[id_count, 4]])
+    new_cam3d.append([cam_3d[id_count, 0] - ad, cam_3d[id_count, 1], cam_3d[id_count, 2] + ad, cam_3d[id_count, 3],
+                      cam_3d[id_count, 4]])
+    new_cam3d.append([cam_3d[id_count, 0] + ad, cam_3d[id_count, 1], cam_3d[id_count, 2], cam_3d[id_count, 3],
+                      cam_3d[id_count, 4]])
+    new_cam3d.append([cam_3d[id_count, 0] - ad, cam_3d[id_count, 1], cam_3d[id_count, 2], cam_3d[id_count, 3],
+                      cam_3d[id_count, 4]])
+    new_cam3d.append([cam_3d[id_count, 0], cam_3d[id_count, 1], cam_3d[id_count, 2] - ad, cam_3d[id_count, 3],
+                      cam_3d[id_count, 4]])
+    new_cam3d.append([cam_3d[id_count, 0], cam_3d[id_count, 1], cam_3d[id_count, 2] + ad, cam_3d[id_count, 3],
+                      cam_3d[id_count, 4]])
+  
+  # exit()
+  cam_3d = np.array(new_cam3d)
+  # print(cam_3d)
   norm_i =  np.zeros((cam_3d.shape))
   real_3d =  np.zeros((cam_3d.shape))
   norm =  np.zeros((cam_3d.shape[0],2))
@@ -172,5 +211,5 @@ def pillaring_r(cam_3d):
   #                                               Vx,Vz = RADAR vel measurment 
   #                                               Vx_o,Vz_o = offset of RADAR velocities and the mean
   #                                                         of all group detections
-  return vox_pillar,vox_pillar_indices
+  return vox_pillar,vox_pillar_indices, cam_3d
 

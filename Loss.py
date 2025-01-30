@@ -30,7 +30,7 @@ z_min = cfg.z_min
 z_max = cfg.z_max
 z_diff = cfg.z_diff
 
-rot_norm = cfg.rot_norm
+rot_norm = cfg.rot_max
 
 lambda_class = cfg.lambda_class
 lambda_occ = cfg.lambda_occ
@@ -41,7 +41,8 @@ lambda_velo = cfg.lambda_velo
 # Smooth_L1 = tf.keras.losses.Huber(reduction = 'none')
 
 def Smooth_L1(label,pos):
-    delta = 1.0
+    # delta = 1.0
+    delta = tf.cast(1.0, tf.float32)  # Certifique-se de usar float32
     diff = tf.abs(label - pos)
     lower_mask = K.cast(diff <= delta,  dtype = tf.float32)
     higher_mask = K.cast(diff > delta,  dtype = tf.float32)
@@ -59,7 +60,8 @@ def focal_loss(y_true, y_pred):
     # print('Pred:', y_pred.shape)
     y_true = y_true[...,0]
     y_pred = y_pred[...,0]
-
+    y_true = tf.cast(y_true, tf.float32)
+    y_pred = tf.cast(y_pred, tf.float32)
     mask_ = tf.equal(y_true, 1)
     pos_mask = tf.cast(mask_, dtype = tf.float32)
     Npos = tf.clip_by_value(tf.reduce_sum(pos_mask),1,1e+15)
@@ -100,6 +102,7 @@ def loc_loss(y_true, y_pred):
     
     
     mask = y_true[...,0]
+    mask = tf.cast(mask, tf.float32)
     # print(y_true)
     # print(mask.shape)
     # exit()
@@ -141,6 +144,7 @@ def size_loss(y_true, y_pred):
     # real_true = dim_to_real(y_true)
     # real_pred = dim_to_real(y_pred)
     mask = y_true[...,0]
+    mask = tf.cast(mask, tf.float32)
     mask_size = tf.tile(tf.expand_dims(mask, -1), [1, 1, 1, 1, 3])
     Npos = tf.clip_by_value(tf.reduce_sum(mask),1,1e+15)
     y_true = y_true[...,4:7]
@@ -160,6 +164,7 @@ def size_loss(y_true, y_pred):
 def angle_loss(y_true, y_pred):
     # mask_angle = tf.cast(mask, dtype = tf.float32)
     mask = y_true[...,0]
+    mask = tf.cast(mask, tf.float32)
     Npos = tf.clip_by_value(tf.reduce_sum(mask),1,1e+15)
     y_true = y_true[...,7]
     y_pred = y_pred[...,7]
@@ -177,29 +182,13 @@ def angle_loss(y_true, y_pred):
 
     return lambda_rot * aloss
 
-def velo_loss(y_true, y_pred):
-    
-    mask = y_true[...,0]
-    mask_velo = tf.tile(tf.expand_dims(mask, -1), [1, 1, 1, 1, 2])
-
-    Npos = tf.clip_by_value(tf.reduce_sum(mask),1,1e+15)
-    y_true = y_true[...,8:10]
-    y_pred = y_pred[...,8:10]
-
-    loss = Smooth_L1(y_true,y_pred)
-
-    velo_loss = tf.math.multiply(mask_velo, loss)
-
-    lloss = tf.reduce_sum(velo_loss)/(Npos)
-
-    return lambda_velo * lloss
-
 def class_loss(y_true, y_pred):
     mask = y_true[...,0]
+    mask = tf.cast(mask, tf.float32)
 
     Npos = tf.clip_by_value(tf.reduce_sum(mask),1,1e+15)
-    y_true = y_true[...,10]
-    y_pred = y_pred[...,10]
+    y_true = y_true[...,8]
+    y_pred = y_pred[...,8]
     mask_ = tf.equal(mask, 1)
     mask_class = tf.cast(tf.math.logical_or(mask_[...,0],mask_[...,1]), dtype = tf.float32)
     loss = tf.nn.softmax_cross_entropy_with_logits(labels=y_true, logits=y_pred)
@@ -219,7 +208,7 @@ def Loss(y_true,y_pred):
     size_loss_ = size_loss(y_true,y_pred)
     angle_loss_ = angle_loss(y_true,y_pred)
     class_loss_ = class_loss(y_true,y_pred)
-    velo_loss_ = velo_loss(y_true,y_pred)
+    # velo_loss_ = velo_loss(y_true,y_pred)
     # # Testing
     # print('Focal loss: ', focal_loss_)
     # print('Loc loss: ', loc_loss_)
@@ -229,7 +218,7 @@ def Loss(y_true,y_pred):
     # print('Class loss: ', class_loss_)
 
     # exit()
-    total_loss = focal_loss_+ loc_loss_+ size_loss_+ angle_loss_+ velo_loss_ + class_loss_
+    total_loss = focal_loss_+ loc_loss_+ size_loss_+ angle_loss_+ class_loss_
 
     return total_loss
 

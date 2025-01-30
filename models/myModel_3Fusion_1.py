@@ -5,6 +5,17 @@ from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, LeakyReLU
     Add, Concatenate, Activation, Softmax, LayerNormalization
 import numpy as np
 import tensorflow.keras.backend as K
+import sys
+from pathlib import Path
+
+# Get the directory of the script being run
+current_dir = Path(__file__).resolve().parent
+
+# Get the parent directory
+parent_dir = current_dir.parent
+
+# Add the parent directory to sys.path
+sys.path.append(str(parent_dir))
 
 import config_model as cfg
 
@@ -20,7 +31,7 @@ max_group_r = cfg.max_group_r
 max_pillars_r = cfg.max_pillars_r
 nb_channels = cfg.nb_channels
 batch_size = cfg.BATCH_SIZE
-image_size = cfg.img_shape
+image_size = cfg.image_shape
 nb_anchors = cfg.nb_anchors
 nb_classes = cfg.nb_classes
 
@@ -288,8 +299,11 @@ def CrossAtt(Flidar,Fimg,number = '0'):
     Query= Conv2D(64,(1,1), activation = 'linear', use_bias = False, name = 'SA/Query'+ number)(Flidar)
     Key= Conv2D(64,(1,1), activation = 'linear', use_bias = False, name = 'SA/Key'+ number)(Fimg)
     Value= Conv2D(64,(1,1), activation = 'linear', use_bias = False, name = 'SA/Value'+ number)(Fimg)
-
+    # print(Key)
+    # print(tf.transpose(Key,perm=[0,2,3,1]))
     out = tf.matmul(Query,tf.transpose(Key,perm=[0,2,3,1]))
+    # print(out)
+    # exit()
     out = out/np.sqrt(image_size[0]//4)
     out = tf.keras.activations.softmax(out, axis = -1)
     out = tf.matmul(out,Value)

@@ -3,27 +3,32 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from tensorflow.keras.layers import Input
 from tensorflow.keras.models import Model
-from utils3 import iou3d, iou2d, plotingcubes, get_3d_box, projection_2d,draw_projected_box3d
+from utils3 import iou3d, iou2d, plotingcubes, get_3d_box
 import tensorflow.keras.backend as K
 import matplotlib.pyplot as plt
-import open3d as o3d
+#import open3d as o3d
 import tensorflow as tf
 import numpy as np
 # from models.myModel_27 import My_Model
-from models.myModel_Fusion_4 import My_Model
-from vox_pillar import pillaring
+from models.myModel_3Fusion_3 import My_Model
+import vox_pillar_l
+import vox_pillar_r
 import cv2
 import config_model as cfg
 import time
-import kitti_data_utils as K_U
+from map import mAPNuscenes
+# import kitti_data_utils as K_U
 
 ######## CFG imports #############
 X_div = cfg.X_div
 Y_div = cfg.Y_div
 Z_div = cfg.Z_div
 
-input_pillar_shape = cfg.input_pillar_shape
-input_pillar_indices_shape = cfg.input_pillar_indices_shape
+input_pillar_l_shape = cfg.input_pillar_l_shape
+input_pillar_l_indices_shape = cfg.input_pillar_l_indices_shape
+
+input_pillar_r_shape = cfg.input_pillar_r_shape
+input_pillar_r_indices_shape = cfg.input_pillar_r_indices_shape
 
 x_min = cfg.x_min
 x_max = cfg.x_max
@@ -37,12 +42,22 @@ z_min = cfg.z_min
 z_max = cfg.z_max
 z_diff = cfg.z_diff
 
-rot_norm = cfg.rot_norm
+velo_min = cfg.vel_min
+velo_max = cfg.vel_max
+
+rot_norm = cfg.rot_max
 
 x_step = cfg.stepx
 z_step = cfg.stepz
 
-KITTI_PATH = cfg.KITTI_PATH
+
+lidar_path = cfg.LIDAR_PATH
+radar_path = cfg.RADAR_PATH
+img_path = cfg.IMG_PATH
+
+
+
+NUSC_PATH = cfg.NUSC_PATH
 #################################
 classes_names = [k for k, v in cfg.classes.items()]
 gpu_options = tf.compat.v1.GPUOptions(allow_growth=True)
@@ -53,26 +68,30 @@ session = tf.compat.v1.InteractiveSession(config=tf.compat.v1.ConfigProto(gpu_op
 # label_path = '/home/rtxadmin/Documents/Marcelo/Doc_code/data/label_norm_lidar_v1/'
 # lidar_path = '/home/rtxadmin/Documents/Marcelo/Doc_code/data/input/lidar_crop/'
 '''PC-MARCELO'''
-label_path = cfg.LABEL_PATH
+# label_path = cfg.LABEL_PATH
 lidar_path = cfg.LIDAR_PATH
 '''PC-DESKTOP'''
 # label_path = 'D:/SCRIPTS/Doc_code/data/label_2/'
 # lidar_path = 'D:/SCRIPTS/Doc_code/data/input/lidar_crop_mini/'
-
-weights_path = 'model_180_Model_minimumV4_fix3_LW2.hdf5'
+# chkp_path = '/home/rtxadmin/Documents/Marcelo/Doc_CLR_v1/checkpoints/val_loss/Temp_loss/'
+weights_path = 'model_100_Model_3Fusion_3_3_dtvelofix.hdf5'
 ###############################-
 
 np.set_printoptions(formatter={'float': lambda x: '{0:0.3f}'.format(x)})
 
-trust_treshould = 0.7
-iou_treshould = 0.7
+trust_treshould = 0.5
+iou_treshould = 0.5
 
-input_pillar = Input(input_pillar_shape,batch_size = 1)
-input_pillar_indices = Input(input_pillar_indices_shape,batch_size = 1)
-input_img = Input((cfg.img_shape[0],cfg.img_shape[1],3), batch_size = 1)
+input_pillar_l = Input(input_pillar_l_shape,batch_size = 1)
+input_pillar_indices_l = Input(input_pillar_l_indices_shape,batch_size = 1)
 
-output = My_Model(input_pillar, input_pillar_indices,input_img)
-model = Model(inputs=[input_pillar, input_pillar_indices,input_img], outputs=output)
+input_pillar_r = Input(input_pillar_r_shape,batch_size = 1)
+input_pillar_indices_r = Input(input_pillar_r_indices_shape,batch_size = 1)
+
+input_img = Input((cfg.image_shape[0],cfg.image_shape[1],3), batch_size = 1)
+
+output = My_Model(input_pillar_l, input_pillar_indices_l,input_pillar_r, input_pillar_indices_r ,input_img)
+model = Model(inputs=[input_pillar_l, input_pillar_indices_l,input_pillar_r, input_pillar_indices_r ,input_img], outputs=output)
 model.load_weights(weights_path, by_name=True)
 
 
@@ -98,36 +117,85 @@ def to_real(detect):
     return real_detect
 
 
-def reading_label_ground(label_path, dataset):
+def reading_label_ground(dataset):
     dtc = []
-    with open(label_path + dataset + '.txt', 'r') as f:
+    with open('C:/Users/maped/Documents/Scripts/Nuscenes_Scripts/' + 'data_an_velo_fix/' + dataset + '.txt', 'r') as f:
         label = f.readlines()
     for l in label:
         l = l.replace('\n', '')
         l = l.split(' ')
         l = np.array(l)
+        
         if l[0] in classes_names:
-            cla = int(cfg.classes[l[0]]) # class --> int
-            pos_x = float(l[11])  # Center Position X in relation to max X
-            pos_y = float(l[12])  # Center Position Y in relation to max Y
-            pos_z = float(l[13])  # Center Position Z in relation to max Z
+            # print(l)
+            cla = int(cfg.classes[l[0]])  # class --> int
+            pos_x = float(l[1])  # Center Position X in relation to max X
+            pos_y = float(l[2])  # Center Position Y in relation to max Y
+            pos_z = float(l[3])  # Center Position Z in relation to max Z
 
-            dim_x = float(l[9])  # Dimension W in relation to max 2X
-            dim_y = float(l[8])  # Dimension H in relation to max 2Y
-            dim_z = float(l[10])  # Dimension L in relation to max Z
+            dim_x = float(l[4])  # Dimension W in relation to max 2X
+            dim_y = float(l[5])  # Dimension H in relation to max 2Y
+            dim_z = float(l[6])  # Dimension L in relation to max Z
+            rot = float(l[7])
+            vel_x = float(l[8])
+            vel_z = float(l[9])
 
-            rot = float(l[14])
-            if rot < 0: rot = rot
+            # if axis_z < 0: rot = -rot
+            # if rot < 0: rot = rot + np.pi
             # occ = int(l[8])
-            oclu = int(l[2])
+            # oclu = int(l[2])
             # dtc.append([pos_x,pos_y,pos_z,dim_x,dim_y,dim_z,rot_y,occ])
-            dtc.append([pos_x, pos_y, pos_z, dim_x, dim_y, dim_z, rot, cla, oclu])
+            norm_x = (pos_x + abs(cfg.x_min)) / (
+                    cfg.x_max - cfg.x_min)  # Center Position X in relation to max X 0-1
+            norm_y = (pos_y + abs(cfg.y_min)) / (
+                    cfg.y_max - cfg.y_min)  # Center Position Y in relation to max Y 0-1
+            norm_z = (pos_z + abs(cfg.z_min)) / (
+                    cfg.z_max - cfg.z_min)  # Center Position Z in relation to max Z 0-1
+
+            norm_vel_x = (vel_x + abs(cfg.vel_min)) / (
+                    cfg.vel_max - cfg.vel_min)  # Norm velocity 0-1
+            norm_vel_z = (vel_z + abs(cfg.vel_min)) / (
+                    cfg.vel_max - cfg.vel_min)  # Norm velocity 0-1
+
+
+            if pos_x > pos_z or -pos_x > pos_z: # Inside the camera FOV
+                fov = 2
+            else:
+                 fov = 0.5
+            # fov = 0.5
+            out_of_size = np.array([norm_x, norm_y, norm_z, norm_vel_x, norm_vel_z, fov])
+            # print(out_of_size)
+            if (np.any(out_of_size > 1) or np.any(out_of_size < 0)) or (np.isnan(vel_x) or np.isnan(vel_z)):
+                continue
+            else:
+                dtc.append([pos_x, pos_y, pos_z, dim_x, dim_y, dim_z, rot, vel_x, vel_z, cla])
+
+
+
+
+            #if pos_z > 0 and fov== 0.5:
+            #    dtc.append([pos_x, pos_y, pos_z, dim_x, dim_y, dim_z, rot, vel_x, vel_z, cla])
     return dtc
 
 
-def building_ipt(lidar_path, data):
+def building_ipt(data):
     # LIDAR read
-    cam3d = np.load(lidar_path + data + '.npy')  # [0,1,2] -> Z,X,Y
+    print(data) 
+    #exit()
+    img = cv2.imread(img_path + data + '.jpg')
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    #plt.imshow(img)
+    #plt.show()
+    img = img / 255.
+    img = cv2.resize(img, (cfg.image_shape))
+
+    lidar = np.load(lidar_path + data + '.npy')  # [0,1,2] -> Z,X,Y
+    vox_pillar_L, pos_L = vox_pillar_l.pillaring_l(lidar)  # (10000,20,7)/ (10000,3)
+
+    radar = np.load(radar_path + data + '.npy')
+    vox_pillar_R, pos_R, cam_3d = vox_pillar_r.pillaring_r(radar)  # (10,5,5)/ (10,3)
+
+
     # pcd = o3d.geometry.PointCloud()
     # pcd.points = o3d.utility.Vector3dVector(cam3d[...,:3])
     # o3d.visualization.draw_geometries([pcd], width=504, height=504 ,
@@ -138,19 +206,20 @@ def building_ipt(lidar_path, data):
     # print(cam3d.shape)
     # print(cam3d[:30])
     # exit()
-    vox_pillar, pos = pillaring(cam3d)  # (10000,20,7)/ (10000,3)
+    # print(img.shape)
+    # print(vox_pillar_L.shape)
+    # print(pos_L.shape)
+    # print(vox_pillar_R.shape)
+    # print(pos_R.shape)
+    # exit()
 
-    return vox_pillar, pos
+    return img, vox_pillar_L, pos_L, vox_pillar_R, pos_R, cam_3d
 
 
-def predict(lidar_path, data):
+def predict(data):
+    # data = 'e9c6888ba9c542b8ad820b6e1cc2790a'
     # input_shape = (1,input_size[0],input_size[1],input_size[2])
-    img_ipt = cv2.imread(cfg.IMG_PATH+data+'.png')
-    img_ipt = cv2.cvtColor(img_ipt,cv2.COLOR_BGR2RGB)
-    img_ipt = img_ipt/255.
-    img_ipt = cv2.resize(img_ipt,(cfg.img_shape))
-
-    pillar_ipt, pos_ipt = building_ipt(lidar_path, data)
+    img, vox_pillar_L, pos_L, vox_pillar_R, pos_R, cam_3d = building_ipt(data)
     # pillar_ipt = np.reshape(pillar_ipt, [-1,
     #                                      input_pillar_shape[0],
     #                                      input_pillar_shape[1],
@@ -158,9 +227,15 @@ def predict(lidar_path, data):
     # pos_ipt = np.reshape(pos_ipt, [-1,
     #                            input_pillar_indices_shape[0],
     #                            input_pillar_indices_shape[1]])
-    pillar_ipt = np.expand_dims(pillar_ipt, axis=0)
-    pos_ipt = np.expand_dims(pos_ipt, axis=0)
-    img_ipt = np.expand_dims(img_ipt,axis=0)
+    img_ipt = np.expand_dims(img, axis=0)
+    pillar_L_ipt = np.expand_dims(vox_pillar_L, axis=0)
+    pos_L_ipt = np.expand_dims(pos_L, axis=0)
+    pillar_R_ipt = np.expand_dims(vox_pillar_R, axis=0)
+    pos_R_ipt = np.expand_dims(pos_R, axis=0)
+
+
+
+
     # img_ipt = np.reshape(img_ipt, [-1,
     #                                      img_ipt.shape[0],
     #                                      img_ipt.shape[1],
@@ -170,26 +245,54 @@ def predict(lidar_path, data):
     # print(pos_ipt.shape)
     # print(img_ipt.shape)
     # exit()
-    ipt = [pillar_ipt, pos_ipt, img_ipt]
+    ipt = [pillar_L_ipt, pos_L_ipt, pillar_R_ipt, pos_R_ipt, img_ipt]
     dt = model.predict(ipt, batch_size=1) # y = [last_conf,last_pos,last_dim,last_rot,last_class]
 
     occupancy = np.reshape(dt[...,0], (1, X_div, Z_div, 2))
     position = dt[...,1:4]
     size = dt[...,4:7]
     angle = np.reshape(dt[...,7], (1, X_div, Z_div, 2))
-    classification = np.reshape(dt[...,8], (1, X_div, Z_div, 2))
+    velo = dt[..., 8:10]
 
-    # occupancy = tf.nn.softmax(occupancy,axis=-1)
-    # occupancy[occupancy<trust_treshould] = 0
-    # occupancy[occupancy >= trust_treshould] = 1
-    # occ = np.tile(np.expand_dims(occupancy, axis = -1), [1,1,1,1,3])
-    # p = np.multiply(occupancy,angle)
+    classification = np.reshape(dt[...,10], (1, X_div, Z_div, 2))
 
+
+    #####
+
+    # from occ_radar_ex import tensor_see
+    # v = (velo * (velo_max-velo_min)) - abs(velo_min) 
+    # tensor_see(occupancy,v,trust_treshould) 
+    #################################################
+    # tensor_ann = np.reshape(velo, (1, 256, 256, 4))
+    # tensor_ann = tf.convert_to_tensor(tensor_ann, dtype=tf.float32)
+    # tensor_ann = tf.nn.max_pool(tensor_ann, ksize=2, strides=2, padding='VALID')
+    # tensor_ann = tf.nn.max_pool(tensor_ann, ksize=2, strides=2, padding='VALID')
+    # tensor_ann = tf.reshape(tensor_ann, (1, 64, 64, 2, 2))
+    # tensor_ann = tensor_ann.numpy()
+
+    # tensor_ann = tensor_ann[0,:,:,0,:]
+    # tensor_ann = np.transpose(tensor_ann, axes=(1,0,2))
+    # X_an, Y_an = np.meshgrid(np.linspace(x_min, x_max, 64), np.linspace(y_min, y_max, 64))
+    # U_an = tensor_ann[:, :, 0]
+    # V_an = tensor_ann[:, :, 1]
+
+    # plt.figure(figsize=(10, 10))
+    # plt.quiver(X_an, Y_an, U_an, V_an,scale =150, color='b')
+    # plt.show()
+    
+    # ###################################################
+    # plt.figure(figsize=(10, 10))
+    # plt.imshow(occupancy[0,:,:,0], cmap='viridis', interpolation='nearest')
+    # plt.colorbar(label='Occupancy')
+    # plt.title('Occupancy Grid')
+    # plt.xlabel('X')
+    # plt.ylabel('Y')
+    # plt.show()
+    # exit()
     # img = np.dstack((occupancy[0,:,:,:2], np.zeros((X_div, Z_div, 1))))
     # plt.imshow(img)
     # plt.imshow(p[0,:,:,1])
-    # plt.show()
-    # exit()
+    
     # print(position.shape)
     # print(size.shape)
     # print(angle.shape)
@@ -232,31 +335,36 @@ def predict(lidar_path, data):
         bb_l = np.exp(size[0, value[0], value[1], value[2], 2]) * anchors[value[2]][2]
 
         bb_rot = -np.arcsin(np.clip(angle[0, value[0], value[1], value[2]],-1,1)) + anchors[value[2]][4]
-
+        # print(velo)
+        bb_velox = ((velo[0, value[0], value[1], value[2], 0] * (velo_max-velo_min)) - abs(velo_min))
+        bb_veloz = ((velo[0, value[0], value[1], value[2], 1] * (velo_max-velo_min)) - abs(velo_min))
+        # bb_velox = velo[0, value[0], value[1], value[2], 0] 
+        # bb_veloz = velo[0, value[0], value[1], value[2], 1]
         bb_cls = np.argmax(classification[0, value[0], value[1], value[2]])
-        # print(occ,bb_x,bb_y,bb_z,bb_w,bb_h,bb_l,bb_rot,bb_cls)
+        
         # exit()
-        f.append([occ,bb_x,bb_y,bb_z,bb_w,bb_h,bb_l,bb_rot,bb_cls])
 
-            # print('Occ: ', occ)
-            # print('X: ', x_f)
-            # print('Y: ', y_f)
-            # print('Z: ', z_f)
-            # print('W: ', w_f)
-            # print('H: ', h_f)
-            # print('L: ', l_f)
-            # print('Rot: ', rot_y)
-            # print('Cls: ', cls)
+        f.append([occ,bb_x,bb_y,bb_z,bb_w,bb_h,bb_l,bb_rot,bb_velox,bb_veloz,bb_cls])
+
+        # print('Occ: ', occ)
+        # print('X: ', x_f)
+        # print('Y: ', y_f)
+        # print('Z: ', z_f)
+        # print('W: ', w_f)
+        # print('H: ', h_f)
+        # print('L: ', l_f)
+        # print('Rot: ', rot_y)
+        # print('Cls: ', cls)
             #
-            # exit()
+    # exit()
     return f
 
 
-def detect(data, label_path):
+def detect(data):
     K.clear_session()
     tf.compat.v1.reset_default_graph()
     # print('oi')
-    f = predict(lidar_path, data)
+    f = predict(data)
     # print(f)
     # print('\n')
     f = sorted(f, key=lambda x: x[0], reverse=True)
@@ -267,8 +375,9 @@ def detect(data, label_path):
     # bboxes = to_real(f)
     bboxes = f
     # print(bboxes)
+    # print('-----')
     # exit()
-    dtcs = np.zeros((len(bboxes),len(bboxes),9))
+    dtcs = np.zeros((len(bboxes),len(bboxes),11))
     # print(bboxes)
     # exit()
     ########## Non-Max-Supression #####################
@@ -288,6 +397,7 @@ def detect(data, label_path):
             else:
                 d_g_idx += 1
                 dtcs[d_idx,d_g_idx,:] = box
+                # print(dtcs)
         d_idx+=1
         bboxes = new_bboxes
         final_detect_real.append(chosen_box)
@@ -322,16 +432,18 @@ def detect(data, label_path):
     corners_predict = []
 
     corners_real = []
-    true_detect = reading_label_ground(label_path, data)
+    true_detect = reading_label_ground(data)
+    
 
 
-
-    calib_path = KITTI_PATH + 'calib/' + data + '.txt'
-    calib = K_U.Calibration(calib_path)
-    img = plt.imread(cfg.KITTI_PATH + 'image_2/' + data + '.png')
+    # calib_path = KITTI_PATH + 'calib/' + data + '.txt'
+    # calib = K_U.Calibration(calib_path)
+    # img = plt.imread(cfg.KITTI_PATH + 'image_2/' + data + '.png')
+    # print('True:')
     for dtc in true_detect:
-
-        corners_real.append([get_3d_box(dtc[:-1]),dtc[-2]])
+        print('\nTrue')
+        print(np.round(dtc, decimals=3))
+        corners_real.append([get_3d_box(dtc[:-3]),dtc[-3],dtc[-2],dtc[-1]])
 
 
 
@@ -342,10 +454,10 @@ def detect(data, label_path):
 
         # print(np.round(dtc,decimals=3))
 
-        corners_predict.append([get_3d_box(dtc[:-1]),dtc[-2]])
+        corners_predict.append([get_3d_box(dtc[:-3]),dtc[-3],dtc[-2],dtc[-1]])
 
-        dtc_2d = projection_2d(get_3d_box(dtc[:-1]), data)
-        img = draw_projected_box3d(img, dtc_2d)
+        # dtc_2d = projection_2d(get_3d_box(dtc[:-1]), data)
+        # img = draw_projected_box3d(img, dtc_2d)
 
     # print(dtc)
     # print(np.array(corners_predict).shape)
@@ -354,20 +466,27 @@ def detect(data, label_path):
     # plt.imshow(img)
     # plt.show()
 
+    f = final_detect_real
+    t = true_detect
+    # mAP_ez, mAP_med, mAP_hard, mean_i_ez, mean_i_med, mean_i_hard, max_i_ez, max_i_med, max_i_hard, detections_ez, detections_med, detections_hard, FP,FN,mave_x, mave_y = maP(
+    #     final_detect_real, true_detect)
+    # print(mean_i)
 
-    mAP_ez, mAP_med, mAP_hard, mean_i_ez, mean_i_med, mean_i_hard, max_i_ez, max_i_med, max_i_hard, detections_ez, detections_med, detections_hard, FP,FN = maP(
-        final_detect_real, true_detect)
+    mAP, mean_i, mean_iou, max_i, max_iou, detections, F1, Recall, mave = mAPNuscenes(f,t)
+    # print(mave)
+    # exit()
     # exit()
     # plotingcubes(corners_predict, corners_real)
+
     # exit()
-    return final_detect_real, true_detect, mAP_ez, mAP_med, mAP_hard, mean_i_ez, mean_i_med, mean_i_hard, max_i_ez, max_i_med, max_i_hard, detections_ez, detections_med, detections_hard, FP, FN
+    return mAP, mean_i, mean_iou, max_i, max_iou, detections, F1, Recall, mave
+    # return final_detect_real, true_detect, mAP_ez, mAP_med, mAP_hard, mean_i_ez, mean_i_med, mean_i_hard, max_i_ez, max_i_med, max_i_hard, detections_ez, detections_med, detections_hard, FP, FN, mave_x, mave_y
 
 
 def maP(corners_predict, corners_real):
     correct_ez = 0
     correct_med = 0
     correct_hard = 0
-
 
     corr_dtc_ez = 0
     corr_dtc_med = 0
@@ -376,6 +495,9 @@ def maP(corners_predict, corners_real):
     i_ez = []
     i_med = []
     i_hard = []
+
+    mave_x = []
+    mave_y = []
 
     number_dtc_ez = 0
     number_dtc_med = 0
@@ -405,12 +527,12 @@ def maP(corners_predict, corners_real):
         for r in range(len(corners_real)):
             # print(corners_predict[0])
             # input()
-            iou_score = iou3d(corners_predict[0][1:-1], corners_real[r][:-2])
+            iou_score = iou3d(corners_predict[0][1:-1], corners_real[r][:-1])
             # print(corners_predict[0][0])
             # print(iou_score,'\n')
             #
             # print(iou_score)
-            if (iou_score > 0.1) and (corners_predict[0][-1] == corners_real[r][-2]):
+            if (iou_score > 0.1) and (corners_predict[0][-1] == corners_real[r][-1]):
 
                 # print(iou_score)
                 # print(corners_predict[0][1:-1])
@@ -425,7 +547,10 @@ def maP(corners_predict, corners_real):
                     i_hard.append(iou_score)
                     corr_dtc_hard += 1
 
-            if (iou_score >= iou_treshould) and (corners_predict[0][-1] == corners_real[r][-2]) :
+            if (iou_score >= iou_treshould) and (corners_predict[0][-1] == corners_real[r][-1]):
+                
+                mave_x.append(abs(corners_predict[0][8] - corners_real[r][8]))
+                mave_y.append(abs(corners_predict[0][9] - corners_real[r][9]))
                 c = False
                 if corners_real[r][-1] == 0:
                     corners_real.pop(r)
@@ -439,14 +564,16 @@ def maP(corners_predict, corners_real):
 
                 break
         if c:
-            FP+=1
-
+            FP += 1
 
         corners_predict.pop(0)
 
     FN = len(corners_real)
     # exit()
-
+    if mave_x == []:
+        mave_x=0
+    if mave_y == []:
+        mave_y=0
     if i_ez == []:
         i_ez = 0
     if i_med == []:
@@ -483,13 +610,17 @@ def maP(corners_predict, corners_real):
     max_i_med = np.max(i_med)
     max_i_hard = np.max(i_hard)
 
-    TP = correct_ez+correct_med+correct_hard
+    TP = correct_ez + correct_med + correct_hard
 
-    F1 = TP/(TP+(FP+FN)/2)
+    F1 = TP / np.clip((TP + (FP + FN) / 2),10^-3,None)
 
-    Recall = TP/(TP+FN)
+    Recall = TP / np.clip((TP + FN),10^-3,None)
 
-    return mAP_ez, mAP_med, mAP_hard, mean_i_ez, mean_i_med, mean_i_hard, max_i_ez, max_i_med, max_i_hard, detections_ez, detections_med, detections_hard, F1, Recall
+    mave_x = np.mean(mave_x)
+ 
+    mave_y = np.mean(mave_y)
+
+    return mAP_ez, mAP_med, mAP_hard, mean_i_ez, mean_i_med, mean_i_hard, max_i_ez, max_i_med, max_i_hard, detections_ez, detections_med, detections_hard, F1, Recall, mave_x, mave_y
 
 
 def clearning_nd(a):
@@ -501,9 +632,9 @@ def clearning_nd(a):
 if __name__ == '__main__':
 
     #
-    # tst_dataset = '/home/rtxadmin/Documents/Marcelo/Doc_code/data'
-    tst_dataset = 'C:/Users/Marcelo/Desktop/SCRIPTS/MySCRIPT/Doc_code/data'
-    # datasets = ['000010','000011','000013','000036','000072','007349']
+    tst_dataset = 'C:/Users/maped/Documents/Scripts/Nuscenes/'
+    # tst_dataset = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/'
+    # datasets = ['000010','000011','000013','000036','000072','007349']"C:/Users/maped/Documents/Scripts/Nuscenes"
     # datasets = ['006953']
     # datasets = ['000010','005382','000036']
     # datasets = ['000012','000018','000035','000102','007381']
@@ -512,40 +643,112 @@ if __name__ == '__main__':
 
     # datasets = ['002937','004834','000975','000021','001595'] # val10_norm6
     # datasets = ['005248','000585','001465','000510'] # val10_norm
-    # datasets = ['004029']
+    # datasets = ['921b2a5eeff840be8d77a3e040b45434\n']
     # with open(os.path.join(tst_dataset, 'test_R_tr.txt'), 'r') as f:
     #     datasets = f.readlines()
 
-    with open(os.path.join(tst_dataset, 'val_20_car.txt'), 'r') as f:
+    with open(os.path.join(tst_dataset, 'val_20.txt'), 'r') as f:
         datasets = f.readlines()
-
+    # datasets = ['921b2a5eeff840be8d77a3e040b45434\n']
     MAcc_ez = []
     MAcc_med = []
     MAcc_hard = []
+
+    mAcc = [[],[],[],[]]
 
     i_mean_ez = []
     i_mean_med = []
     i_mean_hard = []
 
+    i_mean_ns = [[],[],[],[]]
     i = 0
     maxmax_iez = 0
     maxmax_imed = 0
     maxmax_ihard = 0
 
+    recog = [[],[],[],[]]
     yes_detect_ez = []
     yes_detect_med = []
     yes_detect_hard = []
     d = 1
-
+    mean_mave_x, mean_mave_y = [],[]
     mean_F1 = []
     mean_recall = []
     for data in datasets:
         # data = '000107.txt'
         # input('Enter to evalutate')
-        print(data[:6])
+        # print(data)
+        # print(data[:-1])
+        # exit()
 
-        pred, real, mAP_ez, mAP_med, mAP_hard, mean_i_ez, mean_i_med, mean_i_hard, max_i_ez, max_i_med, max_i_hard, detections_ez, detections_med, detections_hard, F1,Recall = detect(
-            data[:6], label_path)
+        # pred, real, mAP_ez, mAP_med, mAP_hard, mean_i_ez, mean_i_med, mean_i_hard, max_i_ez, max_i_med, max_i_hard, detections_ez, detections_med, detections_hard, F1,Recall,mave_x, mave_y = detect(
+        #     data[:-1])
+
+        mAP_ns, mean_i, mean_iou, max_i, max_iou, detections, F1, Recall, mave = detect(data[:-1])
+        # exit()
+
+
+        # dist threshould = dist_threshoulds = [0.5,1,2,4]
+        try:
+            mean_mave_x = mean_mave_x + mave[0]
+            mean_mave_y = mean_mave_y + mave[1]
+        except:
+            print(mave)
+        # print(mean_mave_x)
+        # input()
+        mean_F1.append(F1)
+        mean_recall.append(Recall)
+        # print('Ap:', ap)
+        #print(mAP_ns)
+        for j in range(4):
+            mAcc[j].append(mAP_ns[j])
+            i_mean_ns[j].append(mean_iou[j])
+            recog[j].append(detections[j])
+
+        #MAcc_ez.append(mAP_ez)
+        #MAcc_med.append(mAP_med)
+        #MAcc_hard.append(mAP_hard)
+        # print('A_Iou:', i)
+        #i_mean_ez.append(mean_i_ez)
+        #i_mean_med.append(mean_i_med)
+        #i_mean_hard.append(mean_i_hard)
+        # print('Corr_dtc:',corr_dtc)
+        #yes_detect_ez.append(detections_ez)
+        #yes_detect_med.append(detections_med)
+        #yes_detect_hard.append(detections_hard)
+        # print('\n')
+
+        print('*************************************************************************')
+        print('Data: ', d, ' of ', len(datasets))
+        # ---------------------------------- EASY--------------------------------------------
+        print('*************************************************************************')
+        print('---------------------------Disc 0.5--------------------------------------')
+        print('mAp:', round(np.mean(clearning_nd(mAcc[0])) * 100, 2), '%')
+        print('Mean Iou:', round(np.mean(i_mean_ns[0]), 4))
+        print('Average detection: ', round(np.mean(clearning_nd(recog[0])) * 100, 2), '%')
+        print('---------------------------Disc 1.0--------------------------------------')
+        print('mAp:', round(np.mean(clearning_nd(mAcc[1])) * 100, 2), '%')
+        print('Mean Iou:', round(np.mean(i_mean_ns[1]), 4))
+        print('Average detection: ', round(np.mean(clearning_nd(recog[1])) * 100, 2), '%')
+        print('---------------------------Disc 2.0--------------------------------------')
+        print('mAp:', round(np.mean(clearning_nd(mAcc[2])) * 100, 2), '%')
+        print('Mean Iou:', round(np.mean(i_mean_ns[2]), 4))
+        print('Average detection: ', round(np.mean(clearning_nd(recog[2])) * 100, 2), '%')
+        print('---------------------------Disc 4.0--------------------------------------')
+        print('mAp:', round(np.mean(clearning_nd(mAcc[3])) * 100, 2), '%')
+        print('Mean Iou:', round(np.mean(i_mean_ns[3]), 4))
+        print('Average detection: ', round(np.mean(clearning_nd(recog[3])) * 100, 2), '%')
+        print('-------------')
+        print('MEAV X:', round(np.mean(mean_mave_x), 4))
+        print('MEAV Y:', round(np.mean(mean_mave_y), 4))
+        print('MEAV:', round((np.mean(mean_mave_x)+np.mean(mean_mave_y))/2, 4))
+        print('F1-Score', round(np.mean(mean_F1), 4))
+        print('Recall', round(np.mean(mean_recall), 4))
+        print('\n')
+        #exit()
+        d += 1
+
+''' 
 
         if max_i_ez > maxmax_iez:
             maxmax_iez = max_i_ez
@@ -553,6 +756,12 @@ if __name__ == '__main__':
             maxmax_imed = max_i_med
         if max_i_hard > maxmax_ihard:
             maxmax_ihard = max_i_hard
+
+
+        mean_mave_x.append(mave_x)
+
+
+        mean_mave_y.append(mave_y)
 
         mean_F1.append(F1)
         mean_recall.append(Recall)
@@ -579,8 +788,11 @@ if __name__ == '__main__':
         print('Mean Iou:', round(np.mean(i_mean_ez), 4))
         print('Max Iou:', round(maxmax_iez, 4))
         print('Average detection: ', round(np.mean(clearning_nd(yes_detect_ez)) * 100, 2), '%')
+        print('MEAV X:', round(np.mean(mean_mave_x), 4))
+        print('MEAV Y:', round(np.mean(mean_mave_y), 4))
+        print('MEAV:', round((np.mean(mean_mave_x)+np.mean(mean_mave_y))/2, 4))
         print('\n')
-
+        
         print('---------------------------------MEDIUM--------------------------------------------')
         print('mAp:', round(np.mean(clearning_nd(MAcc_med)) * 100, 2), '%')
         print('Mean Iou:', round(np.mean(i_mean_med), 4))
@@ -597,7 +809,8 @@ if __name__ == '__main__':
         print('F1-Score', round(np.mean(mean_F1), 4))
         print('Recall', round(np.mean(mean_recall), 4))
         print('\n\n\n\n')
+        
         d += 1
 
-
+'''
 

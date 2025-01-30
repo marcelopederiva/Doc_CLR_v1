@@ -3,7 +3,7 @@ from collections import defaultdict
 import config_model as cfg
 # import open3d as o3d
 import matplotlib.pyplot as plt
-image_size = cfg.img_shape
+image_size = cfg.image_shape
 input_pillar_l_shape = cfg.input_pillar_l_shape
 input_pillar_l_indices_shape = cfg.input_pillar_l_indices_shape
 max_group = cfg.max_group_l
@@ -60,25 +60,27 @@ def pillaring_l(cam_3d):
   norm =  np.zeros((cam_3d.shape[0],2))
   # print(norm.shape)
   for i in range(cam_3d.shape[0]):  
-    real_3d[i,0] = cam_3d[i,1]
-    real_3d[i,1] = cam_3d[i,2]
-    real_3d[i,2] = cam_3d[i,0]
+    real_3d[i,0] = cam_3d[i,0]
+    real_3d[i,1] = cam_3d[i,1]
+    real_3d[i,2] = cam_3d[i,2]
 
 
-
-    norm_i[i,0] = norm[i,0] =  (cam_3d[i,0]-x_min)/(x_diff)
-    norm_i[i,1] = (cam_3d[i,1]-y_min)/(y_diff)
-    norm_i[i,2] = norm[i,1] = (cam_3d[i,2]-z_min)/(z_diff)
-    norm_i[i,3] = cam_3d[i,3]
+    if not (real_3d[i,0] > real_3d[i,2] or -real_3d[i,0] > real_3d[i,2]):
+      norm_i[i,0] = norm[i,0] =  (cam_3d[i,0]-x_min)/(x_diff)
+      norm_i[i,1] = (cam_3d[i,1]-y_min)/(y_diff)
+      norm_i[i,2] = norm[i,1] = (cam_3d[i,2]-z_min)/(z_diff)
+      norm_i[i,3] = cam_3d[i,3]
     # norm[i,0] = (cam_3d[i,1]-x_min)/(x_diff)
     # norm[i,1] = (cam_3d[i,0]-z_min)/(z_diff)
   # print(norm)
   # # Developing the grid locations
-  
+
   # for i in range(cam_3d.shape[0]):
 
-  norm[norm>=1] = 0.999 #cutting values out of range
-  norm[norm<=0] = 0.001 #cutting values out of range
+  norm[norm>=1] = 0.0 #cutting values out of range
+  norm[norm<=0] = 0.0 #cutting values out of range
+
+
   norm[:,0] = norm[:,0] * (image_size[0])
   norm[:,1] = norm[:,1] * (image_size[1])
 
@@ -174,3 +176,12 @@ def pillaring_l(cam_3d):
   #                                               Xp,Zp = diff from the center of Pillar
   return vox_pillar,vox_pillar_indices
 
+if __name__ == '__main__':
+    import time
+    start = time.time()
+    lidar_path = 'C:/Users/maped/Documents/Scripts/Nuscenes/Lidar/'
+    data = '0a0d1f7700da446580874d7d1e9fce51'
+    lidar = np.load(lidar_path + data + '.npy')  # [0,1,2] -> Z,X,Y
+    vox_pillar_L, pos_L = pillaring_l(lidar)  # (10000,20,7)/ (10000,3)
+    print(time.time() - start)
+    print(vox_pillar_L.shape)

@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../Nuscenes"
+		},
+		{
+			"path": "../Nuscenes_Scripts"
+		},
+		{
+			"path": "../ImgBEV_v1"
+		},
+		{
+			"path": "../Doc_LC_v1"
+		}
+	],
+	"settings": {}
+}

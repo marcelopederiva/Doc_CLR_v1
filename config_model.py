@@ -4,13 +4,10 @@ import numpy as np
 # input_pillar_shape = (10000, 20, 9)
 # input_pillar_indices_shape = (10000, 3)
 ''' **************  SHAPE  *****************  '''
-input_pillar_l_shape = (12000, 100, 9)
-input_pillar_l_indices_shape = (12000, 3)
+input_pillar_shape = (12000, 100, 9)
+input_pillar_indices_shape = (12000, 3)
 
-input_pillar_r_shape = (100, 10, 4)
-input_pillar_r_indices_shape = (100, 3)
-
-img_shape = (512,512)
+image_shape = (512,512)
 
 ''' **************  DIVISIONS  *****************  '''
 X_div = 256
@@ -27,15 +24,12 @@ Z_div = 256
 # nb_channels = 64
 
 ''' **************  PILLAR  *****************  '''
-max_group_l = 100
-max_pillars_l = 12000
-
-max_group_r = 10
-max_pillars_r = 100
+max_group = 100
+max_pillars = 12000
 
 nb_channels = 64
-# nb_anchors = 4
-nb_anchors = 2
+nb_anchors = 4
+# nb_anchors = 2
 # nb_classes = 4
 # classes = {"Car":               0,
 #                "Pedestrian":        1,
@@ -47,11 +41,17 @@ nb_anchors = 2
 #                "Misc":              3,
 #                }
 
-nb_classes = 1
+nb_classes = 2
 
 # classes = {"Car":               0
 #                }
-classes = {"vehicle.car":               0
+# classes = {"vehicle.car":               0
+#                }
+classes = {"vehicle.car":               0,
+           "human.pedestrian.adult":     1,
+           "human.pedestrian.child":     1,
+           "human.pedestrian.police_officer":     1,
+           "human.pedestrian.construction_worker":     1,
                }
 #KITTI
 # # width,height,lenght,orientation
@@ -65,12 +65,16 @@ classes = {"vehicle.car":               0
 
 
 #Nuscenes
-anchor = np.array([ [1.95,1.73,4.62, 0, 0],
-                    [1.95,1.73,4.62, 0, 1.57]], dtype=np.float32).tolist()
 
+# anchor = np.array([ [1.97,1.74,4.63, 0, 0],
+#                     [1.97,1.74,4.63, 0, 1.57]], dtype=np.float32).tolist()
+anchor = np.array([ [1.97,1.74,4.63, 0, 0],
+                    [1.97,1.74,4.63, 0, 1.57],
+                    [0.67,1.77,0.73, 0, 0],
+                    [0.67,1.77,0.73, 0, 1.57]], dtype=np.float32).tolist()
 trust_treshold = 0.5
-positive_iou_threshold = 0.6
-negative_iou_threshold = 0.4
+pos_iou = 0.6
+neg_iou = 0.4
 
 color_true = { "0": 'limegreen',
                 "1": 'cyan',
@@ -86,19 +90,27 @@ LEARNING_RATE = 2e-4
 DECAY_RATE = 1e-8
 
 ''' **************  PATHS  *****************  '''
-DATASET_PATH = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/'
+# DATASET_PATH = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/'
+DATASET_PATH = 'C:/Users/maped/Documents/Scripts/Nuscenes/'
 
 TRAIN_TXT = 'train_80.txt'
-VAL_TXT = 'val_20.txt'
+VAL_TXT = 'val_10.txt'
+VAL_MINI_TXT = 'val_mini.txt'
 # TRAIN_TXT = 'train_80.txt'
 # VAL_TXT = 'val_20.txt'
 
 # LABEL_PATH = 'D:/SCRIPTS/Doc_code/data/label_2/'
 # LIDAR_PATH = 'D:/SCRIPTS/Doc_code/data/input/lidar_crop_mini/'
-NUSC_PATH = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/'
-LIDAR_PATH = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/Lidar/'
-RADAR_PATH = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/Radar_S/'
-IMG_PATH = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/Img_S/'
+
+NUSC_PATH = 'C:/Users/maped/Documents/Scripts/Nuscenes/'
+LIDAR_PATH = 'C:/Users/maped/Documents/Scripts/Nuscenes/Lidar/'
+RADAR_PATH = 'C:/Users/maped/Documents/Scripts/Nuscenes/Radar_S_fix/Radar_S_fix/'
+IMG_PATH = 'C:/Users/maped/Documents/Scripts/Nuscenes/Img_S/'
+
+# NUSC_PATH = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/'
+# LIDAR_PATH = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/Lidar/'
+# RADAR_PATH = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/Radar_S_fix/'
+# IMG_PATH = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/Img_S/'
 
 ''' **************  LAMBDA WEIGHTS  *****************  '''
 
@@ -117,7 +129,7 @@ IMG_PATH = '/home/rtxadmin/Documents/Marcelo/Nuscenes/Nuscenes/Img_S/'
 # lambda_rot = 2.0
 
 ######################### LW 2
-lambda_class = 0.2
+lambda_class = 1
 lambda_occ   = 0.5
 lambda_pos   = 5.0
 lambda_dim   = 5.0
@@ -133,8 +145,8 @@ lambda_velo  = 5.0
 ''' **************  NORMALIZATION  *****************  '''
 #Norm Final -- KITTI ---- Best Until the moment
 
-x_min = -40
-x_max = 40
+x_min = -30
+x_max = 30
 x_diff = abs(x_max - x_min)
 
 y_min = -6
@@ -142,7 +154,7 @@ y_max = 6
 y_diff = abs(y_max - y_min)
 
 z_min = 0
-z_max = 80
+z_max = 60
 z_diff = abs(z_max - z_min)
 
 #Norm Final -- NUSCENES ----
@@ -159,15 +171,15 @@ z_diff = abs(z_max - z_min)
 # z_max = 100
 # z_diff = abs(z_max - z_min)
 
-vel_min = -20
-vel_max = 20
+vel_min = -30
+vel_max = 30
 
 
 # w_max = 3
 # h_max = 4.5
 # l_max = 10
 
-rot_norm = 3.1416 #direction doesent matter
+rot_max = 3.1416 #direction doesent matter
 
-stepx = x_diff/img_shape[0]
-stepz = z_diff/img_shape[1]
+stepx = x_diff/image_shape[0]
+stepz = z_diff/image_shape[1]

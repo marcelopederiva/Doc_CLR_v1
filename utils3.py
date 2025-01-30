@@ -24,7 +24,8 @@ Sz = cfg.Z_div
 
 rot_norm = 3.1416
 def right_rot(box):
-    return - box - 3.1416 / 2
+    #return - box - 3.1416 / 2 # KITTI
+    return + box -  3.1416 / 2 #Nuscenes
     # if box<=0:
     #     return (- box - 3.1416 / 2)
     # else:
@@ -253,20 +254,37 @@ def plotingcubes(Box_pred,Box_True):
                     Line2D([1,0], [0,0], color=cfg.color_true[str(3)])]
 
     ax.legend(custom_lines, ['Car', 'Pedestrian','Cyclist', 'Truck/Van'], loc= 'best')
+
     for Z in Box_pred:
         Z1 = Z[0]
-        c = Z[1]
+        velx = Z[1]
+        velz  = Z[2]
+        c = Z[3]
+        # print(Z1,'\n')
+        # print(Z[1], '\n')
+        # print(Z[2], '\n')
+        # print(Z[3], '\n')
+        # exit()
+
         verts1 = [[Z1[0], Z1[1], Z1[2], Z1[3]],
                   [Z1[4], Z1[5], Z1[6], Z1[7]],
                   [Z1[0], Z1[1], Z1[5], Z1[4]],
                   [Z1[2], Z1[3], Z1[7], Z1[6]],
                   [Z1[1], Z1[2], Z1[6], Z1[5]],
                   [Z1[4], Z1[7], Z1[3], Z1[0]]]
+        # print(verts1)
+        # exit()
         ax.add_collection3d(Poly3DCollection(verts1, facecolors='red', linewidths=0.5, edgecolors='black', alpha=.25))
-
+        label = '%s' % str(np.round(velx,decimals=1)) + ',' + '%s' % str(np.round(velz,decimals=1))
+        # label = 'bla'
+        # print(Z1[0][0])
+        # exit()
+        ax.text(Z1[0][0],Z1[0][1], Z1[0][2], label, c= 'red', size =10)
     for Z in Box_True:
         Z2 = Z[0]
-        c = Z[1]
+        velx = Z[1]
+        velz  = Z[2]
+        c = Z[3]
         verts2 = [[Z2[0], Z2[1], Z2[2], Z2[3]],
                   [Z2[4], Z2[5], Z2[6], Z2[7]],
                   [Z2[0], Z2[1], Z2[5], Z2[4]],
@@ -274,7 +292,12 @@ def plotingcubes(Box_pred,Box_True):
                   [Z2[1], Z2[2], Z2[6], Z2[5]],
                   [Z2[4], Z2[7], Z2[3], Z2[0]]]
         ax.add_collection3d(Poly3DCollection(verts2, facecolors=cfg.color_true[str(c)], linewidths=0.5, edgecolors='black', alpha=.25))
-
+        # ax.text(Z1[0], Z1[1], Z1[2], (str(velx) + ',' + str(velz)), (1, 0, 0))
+        label = '%s' % str(np.round(velx, decimals=1)) + ',' + '%s' % str(np.round(velz, decimals=1))
+        # label = 'bla'
+        # print(Z1[0][0])
+        # exit()
+        ax.text(Z2[0][0], Z2[0][1], Z2[0][2], label, c='green', size=10)
     plt.show()
 
 
